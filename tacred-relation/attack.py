@@ -18,7 +18,7 @@ def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=3):
             # the intial words can have arbitrary length, so try to convert to float
             phrase = ""
             embed = []
-            for item in elems.split():
+            for item in line.split():
                 try: embed.append(float(item))
                 except: phrase += item 
             word2id[phrase] = len(vocab)
