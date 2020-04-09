@@ -81,7 +81,7 @@ def adv_ex(sentence, target_id,  model, vocab, word2id, embedding, n_gen, n_pop,
     population  = [perturb(sentence, target_id, model, k, vocab, word2id, embedding) for i in range(n_pop)]
 
     for g in range(n_gen):
-        if g % 2 == 0:
+        if g % 5 == 0:
             print("generation: {}".format(g))
         fitness = [prob_target_id(model, population[i], target_id) for i in range(n_pop)]
         adv_sentence = population[np.argmax(fitness)]
@@ -126,9 +126,13 @@ def language_model(sentence, pos, sim_words):
     return sim_words
 
 def crossover(parent1, parent2):
-    child = np.copy(parent1)
-    p2_indices = np.random.choice([0, 1], len(parent2))
-    child[p2_indices] = parent2[p2_indices]
+    child = []
+    for i in range(len(parent1)):
+        choice = np.random.choice([1, 2])
+        if choice == 1:
+            child.append(parent1[i])
+        else:
+            child.append(parent2[i])
     return child
 
 
