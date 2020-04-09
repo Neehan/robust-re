@@ -2,6 +2,9 @@ import numpy as np
 import json
 from sklearn.neighbors import NearestNeighbors
 from sklearn.ensemble import RandomForestClassifier
+import os
+from os import path
+
 
 def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=3):
     """
@@ -10,25 +13,32 @@ def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=3):
     embedding: find word embedding according to id
     """
     print("loading glove vocabulary...")
-    vocab = []
-    word2id = {}
-    embedding = []
-    with open(filename, 'r+') as f:
-        for line in f:
-            if len(vocab) % 5000 == 0:
-                print("{} word embeddings loaded".format(len(vocab)))
-            # the intial words can have arbitrary length, so try to convert to float
-            phrase = ""
-            embed = []
-            for item in line.split(' '):
-                try: embed.append(float(item))
-                except: phrase += item 
-            word2id[phrase] = len(vocab)
-            vocab.append(phrase)
-            embedding.append(embed)
+    vocab_path = "vocab.npy"
+    embedding_path = "embedding.npy"
+    if path.exists(vocab_path) and path.exists(embedding_path):
+        vocab = np.load(vocab_path)
+        embedding = np.load(embedding_path)
+        word2id = dict(zip(vocab, range(len(vocab))))
+    else:
+        vocab = []
+        word2id = {}
+        embedding = []
+        with open(filename, 'r+') as f:
+            for line in f:
+                if len(vocab) % 5000 == 0:
+                    print("{} word embeddings loaded".format(len(vocab)))
+                # the intial words can have arbitrary length, so try to convert to float
+                tokens = line.split(' ')
+                word = tokens[0]
+                embed = [float(x) for x in tokens[1:]]
+                word2id[word] = len(vocab)
+                vocab.append(word)
+                embedding.append(embed)
+        f.close()
+        vocab, embedding = np.array(vocab), np.array(embedding)
     print("completed.")
 
-    return np.array(vocab), word2id, np.array(embedding)
+    return vocab, word2id, embedding
 
 
 def nearest_neighbors(k, word, voab, word2id, embedding):
