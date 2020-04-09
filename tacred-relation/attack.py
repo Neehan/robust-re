@@ -36,6 +36,8 @@ def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=30):
                 embedding.append(embed)
         f.close()
         vocab, embedding = np.array(vocab), np.array(embedding)
+        np.save(vocab_path, vocab)
+        np.save(embedding_path, embedding)
     print("completed.")
 
     return vocab, word2id, embedding
@@ -92,7 +94,7 @@ def adv_ex(sentence, target_id,  model, vocab, word2id, embedding, n_gen, n_pop,
             probs = np.array(fitness) / np.sum(fitness)
             children = []
             for i in range(n_pop):
-                parent1, parent2 = np.random.choice(range(n_pop), 2, p=probs)
+                parent1, parent2 = np.random.choice(population, 2, p=probs)
                 child = crossover(parent1, parent2)
                 children.append(perturb(child, target_id, model, k, vocab, word2id, embedding))
             population = children
