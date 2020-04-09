@@ -8,7 +8,8 @@ from os import path
 
 def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=30):
     """
-    Load all words from glove.
+    Load all words from glove. wv_dim is the dimension of embedding to keep
+    vocab: list of words
     word2id: map each word to a id
     embedding: find word embedding according to id
     """
@@ -27,7 +28,6 @@ def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=30):
             for line in f:
                 if len(vocab) % 5000 == 0:
                     print("{} word embeddings loaded".format(len(vocab)))
-                # the intial words can have arbitrary length, so try to convert to float
                 tokens = line.split(' ')
                 word = tokens[0]
                 embed = [float(x) for x in tokens[1:wv_dim+1]]
@@ -45,7 +45,7 @@ def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=30):
 
 def nearest_neighbors(k, word, voab, word2id, embedding):
     """
-    find nearest neighbors of a word
+    find k nearest neighbors of a word from vocab
     return: neighbor words as np 1d vectors
     """
     if word not in word2id.keys():
@@ -65,20 +65,18 @@ def prob_target_id(model, sentence, target_id):
 
 def adv_ex(sentence, target_id,  model, vocab, word2id, embedding, n_gen, n_pop, k):
     """
-    sentence:        list of tokens
-    target_id:          the relation class we want the model to predict
-    
-    n_gen:         number of generations
-    n_pop:         population size
-    
-    fitness_fn:      fitness function(x, y), here it is the probability of 
-                     the model predicting y for input x
-    
-    predict_fn:      prediction (relation class) of the model for input sentence x
-             k:      number of similar words to look for
-        vocab:       list of all words
-        word2id:     map of each word to its index in vocab
-      embedding:     glove embedding of the words from vocab
+    create an adversarial example from sentence for a model such that it predicts
+    the adversarial example to belong to class target_id
+
+    sentence: list of tokens
+    target_id: class id of the target relation we want the model to predict
+    n_gen: number of generations
+    n_pop: population size
+    model: a function sentence that returns distribution of model's prediction probabilities for all relation classes
+    k: number of similar words to look for
+    vocab: list of all words
+    word2id: map of each word to its index in vocab
+    embedding: glove embedding of the words from vocab
     """
     population  = [perturb(sentence, target_id, model, k, vocab, word2id, embedding) for i in range(n_pop)]
 
@@ -141,11 +139,14 @@ def crossover(parent1, parent2):
 if __name__ == '__main__':
 
     vocab, word2id, embedding = load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=3)
+    # a dummy sentence encoder (just sums up all word embeddings)
     sentence2vec = lambda sentence : np.sum([embedding[word2id[word]] for word in sentence], axis=0)
+    # dummy training sentences
     train_sentences = {("i", "am", "happy") : 0, ("i", "am", "sad"): 1, ("i", "am", "very", "happy") : 2}
     print("computing sentence vectors")
     X = np.array([sentence2vec(sentence) for sentence in train_sentences])
-    # "some relationship", "no relationship"
+    
+    # "some relationship" : 0, "no relationship" : 1
     targets = np.array([1, 0, 1])
 
     r = RandomForestClassifier()
@@ -158,7 +159,7 @@ if __name__ == '__main__':
 
     sen = ["i",  "am", "sad"]
     
-    new_sen =  adv_ex(sentence=sen, target_id=1,  model=model, vocab=vocab, word2id=word2id, embedding=embedding, n_gen=5, n_pop=10, k=2)
+    new_sen =  adv_ex(sentence=sen, target_id=1,  model=model, vocab=vocab, word2id=word2id, embedding=embedding, n_gen=100, n_pop=20, k=2)
 
     print(new_sen, model(sen), model(new_sen))
 
