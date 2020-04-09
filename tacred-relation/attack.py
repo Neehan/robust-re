@@ -9,17 +9,22 @@ def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=3):
     word2id: map each word to a id
     embedding: find word embedding according to id
     """
+    print("loading glove vocabulary...")
     vocab = []
     word2id = {}
     embedding = []
     with open(filename, 'r+') as f:
         for line in f:
-            elems = line.split()
-            word = elems[0]
-            embed = [float(x) for x in elems[1:]]
-            word2id[word] = len(vocab)
-            vocab.append(word)
+            # the intial words can have arbitrary length, so try to convert to float
+            phrase = ""
+            embed = []
+            for item in elems.split():
+                try: embed.append(float(item))
+                except: phrase += item 
+            word2id[phrase] = len(vocab)
+            vocab.append(phrase)
             embedding.append(embed)
+    print("completed.")
 
     return np.array(vocab), word2id, np.array(embedding)
 
