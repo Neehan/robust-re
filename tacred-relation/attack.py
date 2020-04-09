@@ -10,7 +10,7 @@ def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=3):
     embedding: find word embedding according to id
     """
     print("loading glove vocabulary...")
-    glove = np.loadtxt(filename, dtype='str', comments=None)
+    glove = np.loadtxt(filename, dtype='str', comments=None, delimiter=' ')
     vocab = glove[:, 0].reshape(-1)
     word2id = dict(zip(vocab, range(len(vocab))))
     embedding = glove[:, 1:].astype('float')
