@@ -1,5 +1,9 @@
 import numpy as np
 import json
+import os.path
+from os import path
+import pickle
+
 from sklearn.neighbors import NearestNeighbors
 from sklearn.ensemble import RandomForestClassifier
 
@@ -10,12 +14,24 @@ def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=3):
     embedding: find word embedding according to id
     """
     print("loading glove vocabulary...")
-    glove = np.loadtxt(filename, dtype='str', comments=None, delimiter=' ')
-    vocab = glove[:, 0].reshape(-1)
-    word2id = dict(zip(vocab, range(len(vocab))))
-    embedding = glove[:, 1:].astype('float')
+    vocab_path = "dataset/vocab/vocab.pkl"
+    embedding_path = "dataset/vocab/embedding.npy"
+    if path.exists(vocab_path) and path.exists(embedding_path):
+        vocab = np.array(pickle.load(vocab_path)).reshape(-1)
+        print(vocab[:10])
+        embedding = np.load(embedding_path)
+        word2id = dict(zip(vocab, range(len(vocab))))
+    else:
+        glove = np.loadtxt(filename, dtype='str', comments=None, delimiter=' ')
+        vocab = glove[:, 0].reshape(-1)
+        word2id = dict(zip(vocab, range(len(vocab))))
+        embedding = glove[:, 1:].astype('float')
     print("completed.")
-    return np.array(vocab), word2id, np.array(embedding)
+    
+    # np.save(vocab_path, vocab)
+    # np.save("embedding.npy", embedding)
+
+    return vocab, word2id, embedding
 
 
 def nearest_neighbors(k, word, voab, word2id, embedding):
@@ -115,7 +131,7 @@ def crossover(parent1, parent2):
 
 if __name__ == '__main__':
 
-    vocab, word2id, embedding = load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=3)
+    vocab, word2id, embedding = load_glove_vocab(filename='sample.txt', wv_dim=3)
     sentence2vec = lambda sentence : np.sum([embedding[word2id[word]] for word in sentence], axis=0)
     train_sentences = {("i", "am", "happy") : 0, ("i", "am", "sad"): 1, ("i", "am", "very", "happy") : 2}
     X = np.array([sentence2vec(sentence) for sentence in train_sentences])
