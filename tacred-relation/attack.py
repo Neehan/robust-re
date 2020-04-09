@@ -6,7 +6,7 @@ import os
 from os import path
 
 
-def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=3):
+def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=30):
     """
     Load all words from glove.
     word2id: map each word to a id
@@ -17,7 +17,7 @@ def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=3):
     embedding_path = "embedding.npy"
     if path.exists(vocab_path) and path.exists(embedding_path):
         vocab = np.load(vocab_path)
-        embedding = np.load(embedding_path)
+        embedding = np.load(embedding_path)[:, :wv_dim]
         word2id = dict(zip(vocab, range(len(vocab))))
     else:
         vocab = []
@@ -30,7 +30,7 @@ def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=3):
                 # the intial words can have arbitrary length, so try to convert to float
                 tokens = line.split(' ')
                 word = tokens[0]
-                embed = [float(x) for x in tokens[1:]]
+                embed = [float(x) for x in tokens[1:wv_dim+1]]
                 word2id[word] = len(vocab)
                 vocab.append(word)
                 embedding.append(embed)
@@ -91,7 +91,7 @@ def adv_ex(sentence, target_id,  model, vocab, word2id, embedding, n_gen, n_pop,
         else:
             probs = np.array(fitness) / np.sum(fitness)
             children = []
-            for i in range(num_pop):
+            for i in range(n_pop):
                 parent1, parent2 = np.random.choice(range(n_pop), 2, p=probs)
                 child = crossover(parent1, parent2)
                 children.append(perturb(child, target_id, model, k, vocab, word2id, embedding))
@@ -141,12 +141,13 @@ if __name__ == '__main__':
     vocab, word2id, embedding = load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=3)
     sentence2vec = lambda sentence : np.sum([embedding[word2id[word]] for word in sentence], axis=0)
     train_sentences = {("i", "am", "happy") : 0, ("i", "am", "sad"): 1, ("i", "am", "very", "happy") : 2}
+    print("computing sentence vectors")
     X = np.array([sentence2vec(sentence) for sentence in train_sentences])
-    print(X)
     # "some relationship", "no relationship"
     targets = np.array([1, 0, 1])
 
     r = RandomForestClassifier()
+    print("fitting model")
     r.fit(X, targets)
 
     def model(sentence):
