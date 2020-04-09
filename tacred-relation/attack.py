@@ -94,8 +94,8 @@ def adv_ex(sentence, target_id,  model, vocab, word2id, embedding, n_gen, n_pop,
             probs = np.array(fitness) / np.sum(fitness)
             children = []
             for i in range(n_pop):
-                parent1, parent2 = np.random.choice(population, 2, p=probs)
-                child = crossover(parent1, parent2)
+                parent1, parent2 = np.random.choice(range(n_pop), 2, p=probs)
+                child = crossover(population[parent1], population[parent2])
                 children.append(perturb(child, target_id, model, k, vocab, word2id, embedding))
             population = children
     print("no adversarial example found. returning original sentence...")
