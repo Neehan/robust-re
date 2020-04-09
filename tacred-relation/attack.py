@@ -15,6 +15,8 @@ def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=3):
     embedding = []
     with open(filename, 'r+') as f:
         for line in f:
+            if len(vocab) % 5000 == 0:
+                print("{} word embeddings loaded".format(len(vocab)))
             # the intial words can have arbitrary length, so try to convert to float
             phrase = ""
             embed = []
