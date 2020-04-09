@@ -115,7 +115,7 @@ def crossover(parent1, parent2):
 
 if __name__ == '__main__':
 
-    vocab, word2id, embedding = load_glove_vocab(filename='sample.txt', wv_dim=3)
+    vocab, word2id, embedding = load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=3)
     sentence2vec = lambda sentence : np.sum([embedding[word2id[word]] for word in sentence], axis=0)
     train_sentences = {("i", "am", "happy") : 0, ("i", "am", "sad"): 1, ("i", "am", "very", "happy") : 2}
     X = np.array([sentence2vec(sentence) for sentence in train_sentences])
