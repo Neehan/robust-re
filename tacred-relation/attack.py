@@ -127,7 +127,7 @@ def language_model(sentence, pos, sim_words):
 
 def crossover(parent1, parent2):
     child = np.copy(parent1)
-    p2_indices = np.random.choice([True, False], len(parent2))
+    p2_indices = np.random.choice([0, 1], len(parent2))
     child[p2_indices] = parent2[p2_indices]
     return child
 
