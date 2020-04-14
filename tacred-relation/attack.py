@@ -1,9 +1,24 @@
 import numpy as np
+import copy
 import json
 from sklearn.neighbors import NearestNeighbors
 from sklearn.ensemble import RandomForestClassifier
 import os
 from os import path
+import torch
+import random
+
+import random
+import argparse
+import pickle
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+from data.loader import DataLoader
+from model.rnn import RelationModel
+from utils import torch_utils, scorer, constant, helper
+from utils.vocab import Vocab
 
 
 def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=30):
@@ -136,32 +151,86 @@ def crossover(parent1, parent2):
     return child
 
 
+def load_data(args):
+    data_path = args.data_dir + '/' + args.dataset + '.json'
+    adv_data_path = args.data_dir + '/' + args.dataset + '_adv.json'
+
+    torch.manual_seed(1234)
+    random.seed(1234)
+
+    with open(data_path, 'r') as f:
+        data = json.load(f)
+        f.close()
+    sentence = copy.deepcopy(data[0])
+    label_id = constant.LABEL_TO_ID[data[0]['relation']]
+    target_relation = 'per:age'
+    target_id = constant.LABEL_TO_ID[target_relation]
+
+    with open(adv_data_path, 'w') as f:
+        json.dump([sentence], f)
+        f.close()
+
+    # load opt
+    model_file = args.model_dir + '/' + args.model
+    print("Loading model from {}".format(model_file))
+    opt = torch_utils.load_config(model_file)
+    model = RelationModel(opt)
+    model.load(model_file)
+    
+    # load vocab
+    vocab_file = args.model_dir + '/vocab.pkl'
+    vocab = Vocab(vocab_file, load=True)
+    assert opt['vocab_size'] == vocab.size, "Vocab size must match that in the saved model."
+
+    helper.print_config(opt)
+    id2label = dict([(v,k) for k,v in constant.LABEL_TO_ID.items()])
+
+    def modelfn(sen):
+        adv_sen = copy.deepcopy(sentence)
+        adv_sen['token'] = sen
+        with open(adv_data_path, 'w') as adv:
+            json.dump([adv_sen], adv)
+            adv.close()
+
+        batch = DataLoader(adv_data_path, 1, opt, vocab, evaluation=True)
+
+        predictions = []
+        all_probs = []
+        for i, b in enumerate(batch):
+            preds, probs, _ = model.predict(b)
+            predictions += preds
+            all_probs += probs
+
+        return probs[0]
+
+    print("loaded the tacred model.")
+    print("loading the attack model.")
+    vocab_attack, word2id_attack, embedding_attack = load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=30)    
+    print("loaded the attack model.")
+    print(f"original sentence: {sentence['token']}")
+    print(f"original relation: {data[0]['relation']}, target relation: {target_relation}")
+    print("looking for adversarial example")
+    new_sen =  adv_ex(sentence=sentence['token'], target_id=target_id,  model=modelfn, 
+                      vocab=vocab_attack, word2id=word2id_attack, embedding=embedding_attack, n_gen=50, n_pop=100, k=10)
+    print("adversarial example found.")
+    print(new_sen)
+
+
+
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model_dir', type=str, default="saved_models/00", help='Directory of the model.')
+    parser.add_argument('--model', type=str, default='best_model.pt', help='Name of the model file.')
+    parser.add_argument('--data_dir', type=str, default='dataset/tacred')
+    parser.add_argument('--dataset', type=str, default='test', help="Evaluate on dev or test.")
+    parser.add_argument('--out', type=str, default='', help="Save model predictions to this dir.")
 
-    vocab, word2id, embedding = load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=3)
-    # a dummy sentence encoder (just sums up all word embeddings)
-    sentence2vec = lambda sentence : np.sum([embedding[word2id[word]] for word in sentence], axis=0)
-    # dummy training sentences
-    train_sentences = {("i", "am", "happy") : 0, ("i", "am", "sad"): 1, ("i", "am", "very", "happy") : 2}
-    print("computing sentence vectors")
-    X = np.array([sentence2vec(sentence) for sentence in train_sentences])
-    
-    # "some relationship" : 0, "no relationship" : 1
-    targets = np.array([1, 0, 1])
+    parser.add_argument('--seed', type=int, default=1234)
+    parser.add_argument('--cuda', type=bool, default=torch.cuda.is_available())
+    parser.add_argument('--cpu', action='store_true')
+    args = parser.parse_args()
 
-    r = RandomForestClassifier()
-    print("fitting model")
-    r.fit(X, targets)
-
-    def model(sentence):
-        vec = [sentence2vec(sentence)]
-        return r.predict_proba(vec).reshape(-1)
-
-    sen = ["i",  "am", "sad"]
-    
-    new_sen =  adv_ex(sentence=sen, target_id=1,  model=model, vocab=vocab, word2id=word2id, embedding=embedding, n_gen=100, n_pop=20, k=2)
-
-    print(new_sen, model(sen), model(new_sen))
+    print(load_data(args))
 
 
 
