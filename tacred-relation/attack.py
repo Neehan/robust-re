@@ -58,7 +58,7 @@ def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=30):
     return vocab, word2id, embedding
 
 
-def nearest_neighbors(k, word, voab, word2id, embedding):
+def nearest_neighbors(k, word, vocab, word2id, embedding):
     """
     find k nearest neighbors of a word from vocab
     return: neighbor words as np 1d vectors
@@ -166,10 +166,6 @@ def load_data(args):
     target_relation = 'per:age'
     target_id = constant.LABEL_TO_ID[target_relation]
 
-    with open(adv_data_path, 'w') as f:
-        json.dump([sentence], f)
-        f.close()
-
     # load opt
     model_file = args.model_dir + '/' + args.model
     print("Loading model from {}".format(model_file))
@@ -192,16 +188,16 @@ def load_data(args):
             json.dump([adv_sen], adv)
             adv.close()
 
-        batch = DataLoader(adv_data_path, 1, opt, vocab, evaluation=True)
-
+        batch = DataLoader(adv_data_path, 2, opt, vocab, evaluation=True)
         predictions = []
         all_probs = []
         for i, b in enumerate(batch):
+            print(b)
             preds, probs, _ = model.predict(b)
             predictions += preds
             all_probs += probs
-
-        return probs[0]
+        print(all_probs)
+        return all_probs[0]
 
     print("loaded the tacred model.")
     print("loading the attack model.")
