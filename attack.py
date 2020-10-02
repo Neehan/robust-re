@@ -2,15 +2,6 @@ import numpy as np
 import json
 from sklearn.neighbors import NearestNeighbors
 
-
-
-
-
-
-"""
-Run evaluation with saved models.
-"""
-
 import os
 import random
 import argparse
