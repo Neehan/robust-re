@@ -15,156 +15,177 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+from tqdm import tqdm
+
 from data.loader import DataLoader
 from model.rnn import RelationModel
 from utils import torch_utils, scorer, constant, helper
 from utils.vocab import Vocab
 
+torch.manual_seed(1234)
+random.seed(1234)
+numpy.random.seed(1234)
 
-def load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=30):
+
+def load_similarity_dict(filename='dataset/tacred/ner_sym.pkl'):
     """
     Load all words from glove. wv_dim is the dimension of embedding to keep
     vocab: list of words
     word2id: map each word to a id
     embedding: find word embedding according to id
     """
-    print("loading glove vocabulary...")
-    vocab_path = "vocab.npy"
-    embedding_path = "embedding.npy"
-    if path.exists(vocab_path) and path.exists(embedding_path):
-        vocab = np.load(vocab_path)
-        embedding = np.load(embedding_path)[:, :wv_dim]
-        word2id = dict(zip(vocab, range(len(vocab))))
-    else:
-        vocab = []
-        word2id = {}
-        embedding = []
-        with open(filename, 'r+') as f:
-            for line in f:
-                if len(vocab) % 5000 == 0:
-                    print("{} word embeddings loaded".format(len(vocab)))
-                tokens = line.split(' ')
-                word = tokens[0]
-                embed = [float(x) for x in tokens[1:wv_dim+1]]
-                word2id[word] = len(vocab)
-                vocab.append(word)
-                embedding.append(embed)
+    print("loading similarity dict...")
+    with open(filename, 'rb') as f:
+        sim_dict = pickle.load(f)
         f.close()
-        vocab, embedding = np.array(vocab), np.array(embedding)
-        np.save(vocab_path, vocab)
-        np.save(embedding_path, embedding)
-    print("completed.")
+    return sim_dict
+    
 
-    return vocab, word2id, embedding
+# def nearest_neighbors(k, word, vocab, word2id, embedding):
+#     """
+#     find k nearest neighbors of a word from vocab
+#     return: neighbor words as np 1d vectors
+#     """
 
-
-def nearest_neighbors(k, word, vocab, word2id, embedding):
+def find_similar(ner, word, sim_dict, topn=5):
     """
-    find k nearest neighbors of a word from vocab
-    return: neighbor words as np 1d vectors
+    return at most topn similar words to word from sim_dict
     """
-    if word not in word2id.keys():
-        return np.array([word])
-    knn = NearestNeighbors(k)
-    knn.fit(embedding)
-    nbr_ids = knn.kneighbors([embedding[word2id[word]]], k, return_distance=False)
-    return vocab[nbr_ids.reshape(-1)]
+    assert 0 < topn < 25
+    if sim_dict.get(ner) is None or len(word) >= len(sim_dict[ner]):
+        return []
+    words = sim_dict[ner][len(word)]
+    indices = np.random.choice(range(len(words)), topn, replace=False)
+    # print("indices: ", indices)
+    sim_words = np.array(words)[indices].tolist()
+    # print(word, sim_words)
+    return sim_words
 
 
-def prob_target_id(model, sentence, target_id):
+def prob_relation_id(model, relation_id, inp):
     """
-    firnd probability of target_id
+    firnd probability of relation_id
     """
-    prob_target_ids = model(sentence)
-    return prob_target_ids[target_id]
+    prob_relation_ids,_ = model(inp)
+    return np.max([prob_relation_ids[i] for i in range(len(prob_relation_ids)) if i != relation_id])
 
-def adv_ex(sentence, target_id,  model, vocab, word2id, embedding, n_gen, n_pop, k):
+def adv_ex(inp, relation_id,  model, sim_dict, n_gen, n_pop, k, n=1):
     """
-    create an adversarial example from sentence for a model such that it predicts
-    the adversarial example to belong to class target_id
+    create an adversarial example from tokens for a model such that it predicts
+    the adversarial example to belong to class relation_id
 
-    sentence: list of tokens
-    target_id: class id of the target relation we want the model to predict
+    tokens: list of tokens
+    relation_id: class id of relation model originally predicts
     n_gen: number of generations
     n_pop: population size
-    model: a function sentence that returns distribution of model's prediction probabilities for all relation classes
+    model: a function tokens that returns distribution of model's prediction probabilities for all relation classes
     k: number of similar words to look for
     vocab: list of all words
     word2id: map of each word to its index in vocab
     embedding: glove embedding of the words from vocab
     """
-    population  = [perturb(sentence, target_id, model, k, vocab, word2id, embedding) for i in range(n_pop)]
-
-    for g in range(n_gen):
-        if g % 5 == 0:
-            print("generation: {}".format(g))
-        fitness = [prob_target_id(model, population[i], target_id) for i in range(n_pop)]
-        adv_sentence = population[np.argmax(fitness)]
+    population  = [perturb(inp, relation_id, model, sim_dict, k, n) for i in range(n_pop)]
+    for g in tqdm(range(n_gen)):
+        fitness = [prob_relation_id(model, relation_id, population[i]) for i in range(n_pop)]
+        adv_inp = population[np.argmax(fitness)]
         
-        if np.argmax(model(adv_sentence)) == target_id:
-            return adv_sentence
+        if np.argmax(model(adv_inp)[0]) != relation_id:
+            return adv_inp
         else:
             probs = np.array(fitness) / np.sum(fitness)
             children = []
             for i in range(n_pop):
-                parent1, parent2 = np.random.choice(range(n_pop), 2, p=probs)
+                parent1, parent2 = np.random.choice(range(n_pop), 2, p=probs, replace=False)
                 child = crossover(population[parent1], population[parent2])
-                children.append(perturb(child, target_id, model, k, vocab, word2id, embedding))
+                children.append(perturb(child, relation_id, model, sim_dict, k, n))
             population = children
-    print("no adversarial example found. returning original sentence...")
-    return sentence
+    print("no adversarial example found. returning original tokens...")
+    return inp
+
+def join_ners(inp):
+    """
+    get all non obj ners and their start indices as list
+
+    a ner phrase may contain multiple consecutive words
+    """
+    ners = inp['stanford_ner']
+    tokens = inp['token']
+    ignore_ner = ['O']
+    last_ner = None
+    new_tokens = []
+    joint_ner = []
+    for (ner_i, token_i) in zip(ners, tokens):
+        if ner_i not in ignore_ner:
+            if ner_i != last_ner:   
+                new_tokens.append([token_i])
+                last_ner = ner_i
+            else:
+                new_tokens[-1].append(token_i)
+        else:
+            new_tokens.append(token_i)
+            last_ner = ner_i
+    return new_tokens
 
 
-def perturb(sentence, target_id, model, k, vocab, word2id, embedding):
+def perturb(inp, relation_id, model, sim_dict, k, n=1):
     """
-    sentence : a list of tokens
+    tokens : a list of tokens, look at k similar words at each substitution location
+    substitute n words
     """
-    pos = np.random.choice(range(len(sentence)))
+    ners = inp['stanford_ner']
+    tokens = inp['token']
+    new_inp = copy.deepcopy(inp)
+    joint_ner_tokens = join_ners(inp)
     
-    # knn similar from glove
-    sim_words = nearest_neighbors(k, sentence[pos], vocab, word2id, embedding)
-    # similar from language nodel
-    sim_words = language_model(sentence, pos, sim_words)
+    i = 0
+    for joint_token in joint_ner_tokens:
+        if isinstance(joint_token, list):
+            sim_words = find_similar(inp['stanford_ner'][i], joint_token, sim_dict, k)
+            # use language model later
+            fitness = []
+            for sim_word in sim_words:
+                # print("\noriginal: ", joint_token, "sim: ", sim_word)
+                new_tokens = tokens[:i]+sim_word+tokens[i+len(joint_token):]
+                new_inp['token'] = new_tokens
+                # print(new_tokens)
+                fitness.append(prob_relation_id(model, relation_id, new_inp))
 
-    fitness = []
-    for sim_word in sim_words:
-        new_sentence = sentence[:pos]+[sim_word]+sentence[pos+1:]
-        fitness.append(prob_target_id(model, new_sentence, target_id))
+            best_substitute = np.argmax(fitness)
+            tokens = tokens[:i]+sim_words[best_substitute]+tokens[i+len(joint_token):]
 
-    best_substitute = np.argmax(fitness)
-    return sentence[:pos]+[sim_words[best_substitute]]+sentence[pos+1:]
+            i += len(joint_token)
+        else:
+            i += 1
+    new_inp['token'] = tokens
+    return new_inp
 
 
-def language_model(sentence, pos, sim_words):
+def language_model(tokens, pos, sim_words):
     # google's language model, not used for now
     # TODO
     return sim_words
 
 def crossover(parent1, parent2):
-    child = []
-    for i in range(len(parent1)):
+    child = copy.deepcopy(parent1)
+    child['token'] = []
+    child['stanford_ner'] = []
+    for i in range(max(len(parent1['token']), len(parent2['token']))):
         choice = np.random.choice([1, 2])
-        if choice == 1:
-            child.append(parent1[i])
-        else:
-            child.append(parent2[i])
+        if choice == 1 and i < len(parent1['token']):
+            child['token'].append(parent1['token'][i])
+            child['stanford_ner'].append(parent1['stanford_ner'][i])
+        elif choice == 2 and i < len(parent2['token']):
+            child['token'].append(parent2['token'][i])
+            child['stanford_ner'].append(parent2['stanford_ner'][i])
     return child
 
 
 def load_data(args):
     data_path = args.data_dir + '/' + args.dataset + '.json'
-    adv_data_path = args.data_dir + '/' + args.dataset + '_adv.json'
-
-    torch.manual_seed(1234)
-    random.seed(1234)
 
     with open(data_path, 'r') as f:
         data = json.load(f)
         f.close()
-    sentence = copy.deepcopy(data[0])
-    label_id = constant.LABEL_TO_ID[data[0]['relation']]
-    target_relation = 'per:age'
-    target_id = constant.LABEL_TO_ID[target_relation]
 
     # load opt
     model_file = args.model_dir + '/' + args.model
@@ -178,38 +199,41 @@ def load_data(args):
     vocab = Vocab(vocab_file, load=True)
     assert opt['vocab_size'] == vocab.size, "Vocab size must match that in the saved model."
 
-    helper.print_config(opt)
+    # helper.print_config(opt)
     id2label = dict([(v,k) for k,v in constant.LABEL_TO_ID.items()])
 
-    def modelfn(sen):
-        adv_sen = copy.deepcopy(sentence)
-        adv_sen['token'] = sen
-        with open(adv_data_path, 'w') as adv:
-            json.dump([adv_sen], adv)
-            adv.close()
-
-        batch = DataLoader(adv_data_path, 2, opt, vocab, evaluation=True)
+    def modelfn(inp):
+        batch = DataLoader(json.dumps([inp]), 3, opt, vocab, evaluation=True, load_from_file=False)
         predictions = []
         all_probs = []
         for i, b in enumerate(batch):
-            print(b)
             preds, probs, _ = model.predict(b)
             predictions += preds
             all_probs += probs
-        print(all_probs)
-        return all_probs[0]
+        predictions = [id2label[p] for p in predictions]
+        return all_probs[0], predictions
 
-    print("loaded the tacred model.")
-    print("loading the attack model.")
-    vocab_attack, word2id_attack, embedding_attack = load_glove_vocab(filename='dataset/glove/glove.840B.300d.txt', wv_dim=30)    
-    print("loaded the attack model.")
-    print(f"original sentence: {sentence['token']}")
-    print(f"original relation: {data[0]['relation']}, target relation: {target_relation}")
-    print("looking for adversarial example")
-    new_sen =  adv_ex(sentence=sentence['token'], target_id=target_id,  model=modelfn, 
-                      vocab=vocab_attack, word2id=word2id_attack, embedding=embedding_attack, n_gen=50, n_pop=100, k=10)
-    print("adversarial example found.")
-    print(new_sen)
+    sim_dict = load_similarity_dict()    
+    
+    return data, sim_dict, modelfn
+
+def compute_adversarial_dataset(args, data, sim_dict, modelfn):
+    adv_data_path = args.data_dir + '/' + args.dataset + '_adv.json'
+    adv_dataset = []
+    i = 0
+    for inp in np.random.choice(data, 100, replace=False):
+        print(f"iter. {i}: original relation: {modelfn(inp)[1]}")
+        print(f"original sentence: {inp['token']}")
+        relation_id = np.argmax(modelfn(inp)[0])
+        new_inp =  adv_ex(inp, relation_id,  model=modelfn, sim_dict=sim_dict, n_gen=args.n_gen, n_pop=args.n_pop, k=args.n_nbrs)
+        print(f"iter. {i}: new predicted relation: {modelfn(new_inp)[1]}")
+        print(f"new sentence: {new_inp['token']}")
+        adv_dataset.append(new_inp)
+        i += 1
+    with open(adv_data_path, 'w') as f:
+        json.dump(adv_dataset, f)
+        f.close()
+        print("saved at: ", adv_data_path)
 
 
 
@@ -218,15 +242,21 @@ if __name__ == '__main__':
     parser.add_argument('--model_dir', type=str, default="saved_models/00", help='Directory of the model.')
     parser.add_argument('--model', type=str, default='best_model.pt', help='Name of the model file.')
     parser.add_argument('--data_dir', type=str, default='dataset/tacred')
-    parser.add_argument('--dataset', type=str, default='test', help="Evaluate on dev or test.")
+    parser.add_argument('--dataset', type=str, default='train', help="Evaluate on dev or test.")
     parser.add_argument('--out', type=str, default='', help="Save model predictions to this dir.")
 
+    parser.add_argument('--n_gen', type=int, default=15)
+    parser.add_argument('--n_pop', type=int, default=20)
+    parser.add_argument('--n_nbrs', type=int, default=10)
+    
     parser.add_argument('--seed', type=int, default=1234)
     parser.add_argument('--cuda', type=bool, default=torch.cuda.is_available())
     parser.add_argument('--cpu', action='store_true')
     args = parser.parse_args()
 
-    print(load_data(args))
+    data, sim_dict, modelfn = load_data(args)
+    compute_adversarial_dataset(args, data, sim_dict, modelfn)
+
 
 
 

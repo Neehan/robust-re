@@ -7,20 +7,26 @@ import random
 import torch
 import numpy as np
 
+
 from utils import constant, helper, vocab
 
 class DataLoader(object):
     """
     Load data from json files, preprocess and prepare batches.
     """
-    def __init__(self, filename, batch_size, opt, vocab, evaluation=False):
+    def __init__(self, source, batch_size, opt, vocab, evaluation=False, load_from_file=True):
         self.batch_size = batch_size
         self.opt = opt
         self.vocab = vocab
         self.eval = evaluation
 
-        with open(filename) as infile:
-            data = json.load(infile)
+        if load_from_file:
+            with open(source) as infile:
+                data = json.load(infile)
+                infile.close()
+        else:
+            data = json.loads(source)
+
         data = self.preprocess(data, vocab, opt)
         # shuffle for training
         if not evaluation:
@@ -34,7 +40,7 @@ class DataLoader(object):
         # chunk into batches
         data = [data[i:i+batch_size] for i in range(0, len(data), batch_size)]
         self.data = data
-        print("{} batches created for {}".format(len(data), filename))
+        # print("{} batches created for {}".format(len(data), source))
 
     def preprocess(self, data, vocab, opt):
         """ Preprocess the data and convert to ids. """
