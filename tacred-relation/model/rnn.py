@@ -158,7 +158,9 @@ class PositionAwareRNN(nn.Module):
     
     def forward(self, inputs):
         words, masks, pos, ner, deprel, subj_pos, obj_pos = inputs # unpack
-        seq_lens = list(masks.data.eq(constant.PAD_ID).long().sum(1).squeeze())
+        # print(masks.data.eq(constant.PAD_ID).long().sum(1).shape)
+        # removed squeeze at the end of the last sentence
+        seq_lens = list(masks.data.eq(constant.PAD_ID).long().sum(1))
         batch_size = words.size()[0]
         
         # embedding lookup

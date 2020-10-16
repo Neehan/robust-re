@@ -17,17 +17,6 @@ ner_tagger = StanfordNERTagger(
 
 entity_subtypes = {"State-or-Province", "Nation", "URL"}
 
-tacred_relation_map = {
-    # ace relation : tacred equiv, flip sub obj?
-    "Org-Location": ["org:city_of_headquarters", False],
-    "Founder": ["org:founded_by", True],
-    "Membership": ["org:member_of", True],
-    "Investor-Shareholder": ["org:shareholders", True],
-    "Subsidiary": ["org:subsidiaries", True],
-    "Employment": ["per:employee_of", False],
-    "Student-Alum": ["per:schools_attended", False],
-}
-
 tacred_entity_map = {
     "PER": "PERSON",
     "ORG": "ORGANIZATION",
@@ -265,19 +254,9 @@ def to_tacred_format(doc, relations, named_entities, filepath):
         deprels
     ), f"len tokens: {len(tokens)} <=> len words: {len(deprels)}"
 
-    for (rel_id, rel_type, subj_id, obj_id) in relations.values():
-
-        # map the ace type relation to tacred type
-        if rel_type in tacred_relation_map.keys():
-            tacred_rel_type, flip = tacred_relation_map[rel_type]
-        else:
-            tacred_rel_type, flip = rel_type, False
-        if flip:
-            subj_entity = named_entities[obj_id]
-            obj_entity = named_entities[subj_id]
-        else:
-            subj_entity = named_entities[subj_id]
-            obj_entity = named_entities[obj_id]
+    for (rel_id, rel_type, subj_id, obj_id) in relations.values():    
+        subj_entity = named_entities[subj_id]
+        obj_entity = named_entities[obj_id]
 
         # map the subject and object entity to tacred type
         if tacred_entity_map.get(subj_entity[1][0]) is None:
@@ -318,7 +297,7 @@ def to_tacred_format(doc, relations, named_entities, filepath):
         )
 
         relation = {
-            "relation": tacred_rel_type,
+            "relation": rel_type,
             "id": rel_id,
             "subj": subj_entity[4],
             "obj": obj_entity[4],
@@ -339,9 +318,9 @@ def to_tacred_format(doc, relations, named_entities, filepath):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--filelist", help="list for apf and sgm files", required=True)
-parser.add_argument("-f", "--first", help="index of first file in filelist to process")
-parser.add_argument("-l", "--last", help="index of last file in filelist to process")
+parser.add_argument("filelist", help="list for apf and sgm files")
+parser.add_argument("-s", "--start", help="index of first file in filelist to process")
+parser.add_argument("-e", "--end", help="index of last file in filelist to process")
 parser.add_argument(
     "-o", "--output", help="filepath for the output json", required=True
 )
@@ -350,27 +329,34 @@ args = parser.parse_args()
 
 with open(args.filelist, "r") as inp:
     filelist = [filepath.strip() for filepath in inp.readlines()]
+    inp.close()
 
-    i = 0
-    if args.first:
-        i = int(args.first)
-        filelist = filelist[int(args.first) :]
+i = 0
+if args.start:
+    i = int(args.start)
+    filelist = filelist[int(args.start) :]
 
-    if args.last:
-        filelist = filelist[: int(args.last)]
+if args.end:
+    filelist = filelist[: int(args.end)]
 
-    output_json = []
-    for filepath in tqdm(filelist):
-        i += 1
-        text, relations, named_entities = preprocess_ace(
-            filepath + ".apf.xml", filepath + ".sgm"
-        )
+output_json = []
+for filepath in tqdm(filelist):
+    i += 1
+    text, relations, named_entities = preprocess_ace(
+        filepath + ".apf.xml", filepath + ".sgm"
+    )
+    # try to format the text in tacred format
+    # skip if any step fails
+    try:
         output_json += to_tacred_format(text, relations, named_entities, filepath)
-        if (i+1) % 3 == 0:
-            with open(args.output[:-5] + f"_{i}.json", "w") as out:
-                json.dump(output_json, out)
-                out.close()
-                output_json = []
+    except AssertionError:
+        print(f"could not transform {filepath}")
+    
+    if (i+1) % 3 == 0 or (i+1) == len(filelist):
+        with open(args.output[:-5] + f"_{i}.json", "w") as out:
+            json.dump(output_json, out)
+            out.close()
+            output_json = []
 
     # filepath = "English/bn/timex2norm/CNNHL_ENG_20030424_123502.25"
     # text, relations, named_entities = preprocess_ace(
