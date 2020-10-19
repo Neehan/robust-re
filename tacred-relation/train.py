@@ -37,7 +37,7 @@ parser.set_defaults(lower=False)
 
 parser.add_argument('--attn', dest='attn', action='store_true', help='Use attention layer.')
 parser.add_argument('--no-attn', dest='attn', action='store_false')
-parser.set_defaults(attn=True)
+parser.set_defaults(attn=False)
 parser.add_argument('--attn_dim', type=int, default=200, help='Attention size.')
 parser.add_argument('--pe_dim', type=int, default=30, help='Position encoding dimension.')
 

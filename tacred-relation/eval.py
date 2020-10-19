@@ -47,7 +47,7 @@ vocab = Vocab(vocab_file, load=True)
 assert opt['vocab_size'] == vocab.size, "Vocab size must match that in the saved model."
 
 # load data
-data_file = opt['data_dir'] + '/{}.json'.format(args.dataset)
+data_file = args.data_dir + '/{}.json'.format(args.dataset)
 print("Loading data from {} with batch size {}...".format(data_file, opt['batch_size']))
 batch = DataLoader(data_file, opt['batch_size'], opt, vocab, evaluation=True)
 
@@ -61,6 +61,11 @@ for i, b in enumerate(batch):
     predictions += preds
     all_probs += probs
 predictions = [id2label[p] for p in predictions]
+
+# print("predictions")
+# for a, b in zip(batch.gold(), predictions):
+# 	print(f"{a:<28} {b:<28}")
+
 p, r, f1 = scorer.score(batch.gold(), predictions, verbose=True)
 
 # save probability scores
