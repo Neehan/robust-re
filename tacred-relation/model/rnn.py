@@ -23,19 +23,24 @@ class RelationModel(object):
             self.criterion.cuda()
         self.optimizer = torch_utils.get_optimizer(opt['optim'], self.parameters, opt['lr'])
     
-    def update(self, batch):
+    def update(self, batch, res_learning=None):
         """ Run a step of forward and backward model update. """
         if self.opt['cuda']:
-            inputs = [b.cuda() for b in batch[:7]]
-            labels = batch[7].cuda()
+            inputs = [b.cuda() for b in batch[:6]]
+            labels = batch[6].cuda()
         else:
-            inputs = [b for b in batch[:7]]
-            labels = batch[7]
+            inputs = [b for b in batch[:6]]
+            labels = batch[6]
 
         # step forward
         self.model.train()
         self.optimizer.zero_grad()
         logits, _ = self.model(inputs)
+            
+        # if res_learning:
+        #     bias_model_loss, bias_model_probs = res_learning
+            
+        # else:
         loss = self.criterion(logits, labels)
         
         # backward
@@ -48,13 +53,13 @@ class RelationModel(object):
     def predict(self, batch, unsort=True):
         """ Run forward prediction. If unsort is True, recover the original order of the batch. """
         if self.opt['cuda']:
-            inputs = [b.cuda() for b in batch[:7]]
-            labels = batch[7].cuda()
+            inputs = [b.cuda() for b in batch[:6]]
+            labels = batch[6].cuda()
         else:
-            inputs = [b for b in batch[:7]]
-            labels = batch[7]
+            inputs = [b for b in batch[:6]]
+            labels = batch[6]
 
-        orig_idx = batch[8]
+        orig_idx = batch[7]
 
         # forward
         self.model.eval()
@@ -157,7 +162,7 @@ class PositionAwareRNN(nn.Module):
             return h0, c0
     
     def forward(self, inputs):
-        words, masks, pos, ner, deprel, subj_pos, obj_pos = inputs # unpack
+        words, masks, pos, ner, subj_pos, obj_pos = inputs # unpack
         # print(masks.data.eq(constant.PAD_ID).long().sum(1).shape)
         # removed squeeze at the end of the last sentence
         seq_lens = list(masks.data.eq(constant.PAD_ID).long().sum(1))

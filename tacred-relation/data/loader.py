@@ -57,12 +57,13 @@ class DataLoader(object):
             tokens = map_to_ids(tokens, vocab.word2id)
             pos = map_to_ids(d['stanford_pos'], constant.POS_TO_ID)
             ner = map_to_ids(d['stanford_ner'], constant.NER_TO_ID)
-            deprel = map_to_ids(d['stanford_deprel'], constant.DEPREL_TO_ID)
+            # deprel = map_to_ids(d['stanford_deprel'], constant.DEPREL_TO_ID)
             l = len(tokens)
             subj_positions = get_positions(d['subj_start'], d['subj_end'], l)
             obj_positions = get_positions(d['obj_start'], d['obj_end'], l)
             relation = constant.LABEL_TO_ID[d['relation']]
-            processed += [(tokens, pos, ner, deprel, subj_positions, obj_positions, relation)]
+                                            #deprel: arg 3 (count from 0)
+            processed += [(tokens, pos, ner, subj_positions, obj_positions, relation)]
         return processed
 
     def gold(self):
@@ -82,7 +83,7 @@ class DataLoader(object):
         batch = self.data[key]
         batch_size = len(batch)
         batch = list(zip(*batch))
-        assert len(batch) == 7
+        assert len(batch) == 6
 
         # sort all fields by lens for easy RNN operations
         lens = [len(x) for x in batch[0]]
@@ -99,13 +100,13 @@ class DataLoader(object):
         masks = torch.eq(words, 0)
         pos = get_long_tensor(batch[1], batch_size)
         ner = get_long_tensor(batch[2], batch_size)
-        deprel = get_long_tensor(batch[3], batch_size)
-        subj_positions = get_long_tensor(batch[4], batch_size)
-        obj_positions = get_long_tensor(batch[5], batch_size)
+        # deprel = get_long_tensor(batch[3], batch_size)
+        subj_positions = get_long_tensor(batch[3], batch_size)
+        obj_positions = get_long_tensor(batch[4], batch_size)
 
-        rels = torch.LongTensor(batch[6])
-
-        return (words, masks, pos, ner, deprel, subj_positions, obj_positions, rels, orig_idx)
+        rels = torch.LongTensor(batch[5])
+        # deprel postion: 4 (count from 0)
+        return (words, masks, pos, ner, subj_positions, obj_positions, rels, orig_idx)
 
     def __iter__(self):
         for i in range(self.__len__()):

@@ -12,11 +12,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--processed-dir", "-pd",
     dest="pdir",
-    default="tacred_fine/",
+    default="tacred_coarse/",
     help="path to the processed ace2005 data directory",
 )
 parser.add_argument(
-    "--outdir", "-o", default="tacred_fine/", help="path to the output directory",
+    "--outdir", "-o", default="tacred_coarse/", help="path to the output directory",
 )
 args = parser.parse_args()
 
