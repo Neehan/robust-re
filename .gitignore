@@ -135,3 +135,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# data
+data/
+model/
+model2/
+biased_model/
+eval/
+debiased_saved_models/

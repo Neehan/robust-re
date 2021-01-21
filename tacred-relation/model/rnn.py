@@ -19,11 +19,12 @@ class RelationModel(object):
         self.criterion = nn.CrossEntropyLoss()
         self.parameters = [p for p in self.model.parameters() if p.requires_grad]
         if opt['cuda']:
+            print("starting cuda.")
             self.model.cuda()
             self.criterion.cuda()
         self.optimizer = torch_utils.get_optimizer(opt['optim'], self.parameters, opt['lr'])
     
-    def update(self, batch, res_learning=None):
+    def update(self, batch, biased_model_probs=None):
         """ Run a step of forward and backward model update. """
         if self.opt['cuda']:
             inputs = [b.cuda() for b in batch[:6]]
@@ -37,11 +38,10 @@ class RelationModel(object):
         self.optimizer.zero_grad()
         logits, _ = self.model(inputs)
             
-        # if res_learning:
-        #     bias_model_loss, bias_model_probs = res_learning
-            
-        # else:
         loss = self.criterion(logits, labels)
+        if isinstance(biased_model_probs, torch.Tensor):
+            probs = F.softmax(logits, dim=1)
+            loss -= torch.mean(torch.log(torch.einsum('ij,ij->i',probs, biased_model_probs)))
         
         # backward
         loss.backward()
@@ -125,7 +125,7 @@ class PositionAwareRNN(nn.Module):
         self.use_cuda = opt['cuda']
         self.emb_matrix = emb_matrix
         self.init_weights()
-    
+
     def init_weights(self):
         if self.emb_matrix is None:
             self.emb.weight.data[1:,:].uniform_(-1.0, 1.0) # keep padding dimension to be 0
@@ -163,6 +163,8 @@ class PositionAwareRNN(nn.Module):
     
     def forward(self, inputs):
         words, masks, pos, ner, subj_pos, obj_pos = inputs # unpack
+        # print(f"words:{words}\n\nmasks:{masks}\n\npos:{pos}\n\nner:{ner}\n\nsubj_pos{subj_pos}\nobj_pos:{obj_pos}")
+        # raise ValueError("need to quit")
         # print(masks.data.eq(constant.PAD_ID).long().sum(1).shape)
         # removed squeeze at the end of the last sentence
         seq_lens = list(masks.data.eq(constant.PAD_ID).long().sum(1))

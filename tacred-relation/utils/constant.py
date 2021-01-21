@@ -1,27 +1,32 @@
 """
 Define common constants.
 """
+from transformers import BertTokenizer
+
+
 TRAIN_JSON = "train.json"
 DEV_JSON = "dev.json"
 TEST_JSON = "test.json"
 
 GLOVE_DIR = "dataset/glove"
+BERT_MODEL = "bert-base-cased"
 
 EMB_INIT_RANGE = 1.0
 MAX_LEN = 500
 
+tokenizer = BertTokenizer.from_pretrained(BERT_MODEL)
+
 # vocab
-PAD_TOKEN = "<PAD>"
-PAD_ID = 0
-UNK_TOKEN = "<UNK>"
-UNK_ID = 1
+PAD_TOKEN = "[PAD]"
+UNK_TOKEN = "[UNK]"
+PAD_ID, UNK_ID = tokenizer.convert_tokens_to_ids([PAD_TOKEN, UNK_TOKEN])
 
 VOCAB_PREFIX = [PAD_TOKEN, UNK_TOKEN]
 
 # hard-coded mappings from fields to ids
 SUBJ_NER_TO_ID = {
-    PAD_TOKEN: 0,
-    UNK_TOKEN: 1,
+    PAD_TOKEN: PAD_ID,
+    UNK_TOKEN: UNK_ID,
     # "ORGANIZATION": 2,
     # "PERSON": 3
 
@@ -75,8 +80,8 @@ SUBJ_NER_TO_ID = {
 }
 
 OBJ_NER_TO_ID = {
-    PAD_TOKEN: 0,
-    UNK_TOKEN: 1,
+    PAD_TOKEN: PAD_ID,
+    UNK_TOKEN: UNK_ID,
     # "PERSON": 2,
     # "ORGANIZATION": 3,
     # "DATE": 4,
@@ -153,8 +158,8 @@ OBJ_NER_TO_ID = {
 
 
 NER_TO_ID = {
-    PAD_TOKEN: 0,
-    UNK_TOKEN: 1,
+    PAD_TOKEN: PAD_ID,
+    UNK_TOKEN: UNK_ID,
     # "O": 2,
     # "PERSON": 3,
     # "ORGANIZATION": 4,
@@ -190,8 +195,8 @@ NER_TO_ID = {
 }
 
 POS_TO_ID = {
-    PAD_TOKEN: 0,
-    UNK_TOKEN: 1,
+    PAD_TOKEN: PAD_ID,
+    UNK_TOKEN: UNK_ID,
     "NNP": 2,
     "NN": 3,
     "IN": 4,
@@ -237,51 +242,6 @@ POS_TO_ID = {
     "LS": 44,
     "UH": 45,
     "#": 46,
-}
-
-DEPREL_TO_ID = {
-    PAD_TOKEN: 0,
-    UNK_TOKEN: 1,
-    "punct": 2,
-    "compound": 3,
-    "case": 4,
-    "nmod": 5,
-    "det": 6,
-    "nsubj": 7,
-    "amod": 8,
-    "conj": 9,
-    "dobj": 10,
-    "ROOT": 11,
-    "cc": 12,
-    "nmod:poss": 13,
-    "mark": 14,
-    "advmod": 15,
-    "appos": 16,
-    "nummod": 17,
-    "dep": 18,
-    "ccomp": 19,
-    "aux": 20,
-    "advcl": 21,
-    "acl:relcl": 22,
-    "xcomp": 23,
-    "cop": 24,
-    "acl": 25,
-    "auxpass": 26,
-    "nsubjpass": 27,
-    "nmod:tmod": 28,
-    "neg": 29,
-    "compound:prt": 30,
-    "mwe": 31,
-    "parataxis": 32,
-    "root": 33,
-    "nmod:npmod": 34,
-    "expl": 35,
-    "csubj": 36,
-    "cc:preconj": 37,
-    "iobj": 38,
-    "det:predet": 39,
-    "discourse": 40,
-    "csubjpass": 41,
 }
 
 LABEL_TO_ID = {
@@ -351,12 +311,18 @@ LABEL_TO_ID = {
     
     # using type
     "no_relation": 0,
-    "PART-WHOLE": 1,
-    "PER-SOC": 2,
-    "PHYS": 3,
-    "GEN-AFF": 4,
-    "ART": 5,
-    "ORG-AFF": 6,
+    "PART-WHOLE(e1,e2)": 1,
+    "PART-WHOLE(e2,e1)": 2,
+    "PER-SOC(e1,e2)": 3,
+    "PER-SOC(e2,e1)": 4,
+    "PHYS(e1,e2)": 5,
+    "PHYS(e2,e1)": 6,
+    "GEN-AFF(e1,e2)": 7,
+    "GEN-AFF(e2,e1)": 8,
+    "ART(e1,e2)": 9,
+    "ART(e2,e1)": 10,
+    "ORG-AFF(e1,e2)": 11,
+    "ORG-AFF(e2,e1)": 12,
 }
 
 INFINITY_NUMBER = 1e12

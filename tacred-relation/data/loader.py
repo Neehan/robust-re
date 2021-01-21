@@ -6,7 +6,7 @@ import json
 import random
 import torch
 import numpy as np
-
+from transformers import BertTokenizer
 
 from utils import constant, helper, vocab
 
@@ -27,7 +27,7 @@ class DataLoader(object):
         else:
             data = json.loads(source)
 
-        data = self.preprocess(data, vocab, opt)
+        data = self.preprocess(data, vocab, opt, opt['bert'])
         # shuffle for training
         if not evaluation:
             indices = list(range(len(data)))
@@ -42,9 +42,10 @@ class DataLoader(object):
         self.data = data
         # print("{} batches created for {}".format(len(data), source))
 
-    def preprocess(self, data, vocab, opt):
+    def preprocess(self, data, vocab, opt, use_bert):
         """ Preprocess the data and convert to ids. """
         processed = []
+        # TODO
         for d in data:
             tokens = d['token']
             if opt['lower']:
@@ -54,6 +55,23 @@ class DataLoader(object):
             os, oe = d['obj_start'], d['obj_end']
             tokens[ss:se+1] = ['SUBJ-'+d['subj_type']] * (se-ss+1)
             tokens[os:oe+1] = ['OBJ-'+d['obj_type']] * (oe-os+1)
+            
+            # if use_bert:
+            #     # bert uses wordpiece tokenization, so split each token
+            #     # into bert tokens
+            #     bert_tokens, bert_ner, bert_pos = [], [], []
+            #     for i, token in enumerate(tokens):
+            #         # bert vocab has a tokenizer
+            #         bert_token = vocab.tokenizer.tokenize(token)
+            #         bert_tokens += bert_token
+            #         bert_ner += [d['stanford_ner'][i]]*len(bert_token)
+            #         bert_pos += [d['stanford_pos'][i]]*len(bert_token)
+
+            #     tokens = bert_tokens
+            #     d['stanford_ner'] = bert_ner
+            #     d['stanford_pos'] = bert_pos
+
+
             tokens = map_to_ids(tokens, vocab.word2id)
             pos = map_to_ids(d['stanford_pos'], constant.POS_TO_ID)
             ner = map_to_ids(d['stanford_ner'], constant.NER_TO_ID)
@@ -97,7 +115,7 @@ class DataLoader(object):
 
         # convert to tensors
         words = get_long_tensor(words, batch_size)
-        masks = torch.eq(words, 0)
+        masks = torch.eq(words, constant.PAD_ID)
         pos = get_long_tensor(batch[1], batch_size)
         ner = get_long_tensor(batch[2], batch_size)
         # deprel = get_long_tensor(batch[3], batch_size)
