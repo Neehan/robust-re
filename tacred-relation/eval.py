@@ -69,11 +69,11 @@ predictions = [id2label[p] for p in predictions]
 p, r, f1 = scorer.score(batch.gold(), predictions, verbose=True)
 
 # save probability scores
-if len(args.out) > 0:
-    helper.ensure_dir(os.path.dirname(args.out))
-    with open(args.out, 'wb') as outfile:
-        pickle.dump(all_probs, outfile)
-    print("Prediction scores saved to {}.".format(args.out))
+# if len(args.out) > 0:
+#     helper.ensure_dir(os.path.dirname(args.out))
+#     with open(args.out, 'wb') as outfile:
+#         pickle.dump(all_probs, outfile)
+#     print("Prediction scores saved to {}.".format(args.out))
 
 print("Evaluation ended.")
 

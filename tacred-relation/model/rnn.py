@@ -195,7 +195,7 @@ class PositionAwareRNN(nn.Module):
             subj_pe_inputs = self.pe_emb(subj_pos + constant.MAX_LEN)
             obj_pe_inputs = self.pe_emb(obj_pos + constant.MAX_LEN)
             pe_features = torch.cat((subj_pe_inputs, obj_pe_inputs), dim=2)
-            final_hidden = self.attn_layer(outputs, masks, hidden, pe_features)
+            final_hidden, attn_weights = self.attn_layer(outputs, masks, hidden, pe_features)
         else:
             final_hidden = hidden
 

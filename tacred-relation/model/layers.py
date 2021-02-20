@@ -95,5 +95,5 @@ class PositionAwareAttention(nn.Module):
         weights = F.softmax(scores, dim=1)
         # weighted average input vectors
         outputs = weights.unsqueeze(1).bmm(x).squeeze(1)
-        return outputs
+        return outputs, weights
 

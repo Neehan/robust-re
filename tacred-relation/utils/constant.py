@@ -9,17 +9,17 @@ DEV_JSON = "dev.json"
 TEST_JSON = "test.json"
 
 GLOVE_DIR = "dataset/glove"
-BERT_MODEL = "bert-base-cased"
+# BERT_MODEL = "bert-base-cased"
 
 EMB_INIT_RANGE = 1.0
-MAX_LEN = 500
+MAX_LEN = 300
 
-tokenizer = BertTokenizer.from_pretrained(BERT_MODEL)
+# tokenizer = BertTokenizer.from_pretrained(BERT_MODEL)
 
 # vocab
-PAD_TOKEN = "[PAD]"
-UNK_TOKEN = "[UNK]"
-PAD_ID, UNK_ID = tokenizer.convert_tokens_to_ids([PAD_TOKEN, UNK_TOKEN])
+PAD_TOKEN = "<PAD>"
+UNK_TOKEN = "<UNK>"
+PAD_ID, UNK_ID =  0, 1#tokenizer.convert_tokens_to_ids([PAD_TOKEN, UNK_TOKEN])
 
 VOCAB_PREFIX = [PAD_TOKEN, UNK_TOKEN]
 
@@ -29,46 +29,6 @@ SUBJ_NER_TO_ID = {
     UNK_TOKEN: UNK_ID,
     # "ORGANIZATION": 2,
     # "PERSON": 3
-
-    ## using subtype
-    # "Medical-Science": 2,
-    # "Airport": 3,
-    # "Boundary": 4,
-    # "Subarea-Facility": 5,
-    # "Land-Region-Natural": 6,
-    # "Path": 7,
-    # "Plant": 8,
-    # "Celestial": 9,
-    # "Commercial": 10,
-    # "Region-International": 11,
-    # "Subarea-Vehicle": 12,
-    # "Building-Grounds": 13,
-    # "Special": 14,
-    # "County-or-District": 15,
-    # "Projectile": 16,
-    # "Water-Body": 17,
-    # "Water": 18,
-    # "Shooting": 19,
-    # "Individual": 20,
-    # "Entertainment": 21,
-    # "State-or-Province": 22,
-    # "GPE-Cluster": 23,
-    # "Sports": 24,
-    # "Population-Center": 25,
-    # "Religious": 26,
-    # "Address": 27,
-    # "Nation": 28,
-    # "Region-General": 29,
-    # "Group": 30,
-    # "Government": 31,
-    # "Indeterminate": 32,
-    # "Air": 33,
-    # "Nuclear": 34,
-    # "Media": 35,
-    # "Educational": 36,
-    # "Non-Governmental": 37,
-    # "Land": 38,
-    
     # using type
     "ORG": 2,
     "LOC": 3,
@@ -99,53 +59,7 @@ OBJ_NER_TO_ID = {
     # "RELIGION": 16,
     # "URL": 17,
     # "IDEOLOGY": 18,
-    
-    # using subtype
-    # "Medical-Science": 2,
-    # "Underspecified": 3,
-    # "Airport": 4,
-    # "Boundary": 5,
-    # "Subarea-Facility": 6,
-    # "Land-Region-Natural": 7,
-    # "Path": 8,
-    # "Blunt": 9,
-    # "Plant": 10,
-    # "Celestial": 11,
-    # "Commercial": 12,
-    # "Exploding": 13,
-    # "Region-International": 14,
-    # "Subarea-Vehicle": 15,
-    # "Building-Grounds": 16,
-    # "Special": 17,
-    # "County-or-District": 18,
-    # "Projectile": 19,
-    # "Chemical": 20,
-    # "Continent": 21,
-    # "Water-Body": 22,
-    # "Water": 23,
-    # "Shooting": 24,
-    # "Individual": 25,
-    # "Entertainment": 26,
-    # "State-or-Province": 27,
-    # "Sharp": 28,
-    # "GPE-Cluster": 29,
-    # "Sports": 30,
-    # "Population-Center": 31,
-    # "Religious": 32,
-    # "Address": 33,
-    # "Nation": 34,
-    # "Region-General": 35,
-    # "Government": 36,
-    # "Group": 37,
-    # "Indeterminate": 38,
-    # "Air": 39,
-    # "Nuclear": 40,
-    # "Media": 41,
-    # "Educational": 42,
-    # "Non-Governmental": 43,
-    # "Biological": 44,
-    # "Land": 45,
-    
+   
     ## using type
     "ORG": 2,
     "LOC": 3,
@@ -289,40 +203,14 @@ LABEL_TO_ID = {
     # "per:country_of_death": 41,
 
     ## using subtype
-    # "no_relation": 0,
-    # "Located": 1,
-    # "Geographical": 2,
-    # "Business": 3,
-    # "Membership": 4,
-    # "Sports-Affiliation": 5,
-    # "Student-Alum": 6,
-    # "Subsidiary": 7,
-    # "User-Owner-Inventor-Manufacturer": 8,
-    # "Lasting-Personal": 9,
-    # "Ownership": 10,
-    # "Investor-Shareholder": 11,
-    # "Founder": 12,
-    # "Org-Location": 13,
-    # "Artifact": 14,
-    # "Citizen-Resident-Religion-Ethnicity": 15,
-    # "Near": 16,
-    # "Employment": 17,
-    # "Family": 18,
-    
     # using type
     "no_relation": 0,
-    "PART-WHOLE(e1,e2)": 1,
-    "PART-WHOLE(e2,e1)": 2,
-    "PER-SOC(e1,e2)": 3,
-    "PER-SOC(e2,e1)": 4,
-    "PHYS(e1,e2)": 5,
-    "PHYS(e2,e1)": 6,
-    "GEN-AFF(e1,e2)": 7,
-    "GEN-AFF(e2,e1)": 8,
-    "ART(e1,e2)": 9,
-    "ART(e2,e1)": 10,
-    "ORG-AFF(e1,e2)": 11,
-    "ORG-AFF(e2,e1)": 12,
+    "PART-WHOLE": 1,
+    "PER-SOC": 2,
+    "PHYS": 3,
+    "GEN-AFF": 4,
+    "ART": 5,
+    "ORG-AFF": 6,
 }
 
 INFINITY_NUMBER = 1e12

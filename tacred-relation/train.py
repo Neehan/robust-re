@@ -13,17 +13,19 @@ from shutil import copyfile
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from tqdm import tqdm
 
 from data.loader import DataLoader
 from model.rnn import RelationModel
-from model.bert_rnn import BertRelationModel
+# from model.bert_rnn import BertRelationModel
 from utils import scorer, constant, helper
 from utils.vocab import Vocab
-from utils.bert_vocab import BERTVocab
+# from utils.bert_vocab import BERTVocab
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data_dir", type=str, default="dataset/tacred")
 parser.add_argument("--data_name", type=str, default="train.json")
+parser.add_argument("--test_name", type=str, default="dev.json")
 parser.add_argument("--vocab_dir", type=str, default="dataset/vocab")
 parser.add_argument(
     "--emb_dim", type=int, default=300, help="Word embedding dimension."
@@ -65,7 +67,7 @@ parser.add_argument(
 parser.add_argument("--lr", type=float, default=1.0, help="Applies to SGD and Adagrad.")
 parser.add_argument("--lr_decay", type=float, default=0.9)
 parser.add_argument(
-    "--optim", type=str, default="sgd", help="sgd, adagrad, adam or adamax."
+    "--optim", type=str, default="adagrad", help="sgd, adagrad, adam or adamax."
 )
 parser.add_argument("--num_epoch", type=int, default=30)
 parser.add_argument("--batch_size", type=int, default=50)
@@ -92,7 +94,7 @@ parser.add_argument(
 parser.add_argument("--seed", type=int, default=1234)
 parser.add_argument("--cuda", type=bool, default=torch.cuda.is_available())
 parser.add_argument("--cpu", action="store_true", help="Ignore CUDA.")
-parser.add_argument("--bert", action="store_true", help="use BERT embeddings.")
+# parser.add_argument("--bert", action="store_true", help="use BERT embeddings.")
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -108,16 +110,16 @@ opt = vars(args)
 opt["num_class"] = len(constant.LABEL_TO_ID)
 
 # load vocab
-if opt["bert"]:
-    vocab = BERTVocab()
-else:
-    vocab_file = opt["vocab_dir"] + "/vocab.pkl"
-    vocab = Vocab(vocab_file, load=True)
-    opt["vocab_size"] = vocab.size
-    emb_file = opt["vocab_dir"] + "/embedding.npy"
-    emb_matrix = np.load(emb_file)
-    assert emb_matrix.shape[0] == vocab.size
-    assert emb_matrix.shape[1] == opt["emb_dim"]
+# if opt["bert"]:
+#     vocab = BERTVocab()
+# else:
+vocab_file = opt["vocab_dir"] + "/vocab.pkl"
+vocab = Vocab(vocab_file, load=True)
+opt["vocab_size"] = vocab.size
+emb_file = opt["vocab_dir"] + "/embedding.npy"
+emb_matrix = np.load(emb_file)
+assert emb_matrix.shape[0] == vocab.size
+assert emb_matrix.shape[1] == opt["emb_dim"]
 
 # load data
 print(
@@ -133,11 +135,11 @@ train_batch = DataLoader(
     evaluation=False,
 )
 dev_batch = DataLoader(
-    opt["data_dir"] + "/dev.json", opt["batch_size"], opt, vocab, evaluation=True
+    opt["data_dir"] + "/" + opt["test_name"], opt["batch_size"], opt, vocab, evaluation=True
 )
 
-if opt["bert"]:
-    opt["vocab_size"] = vocab.size()
+# if opt["bert"]:
+#     opt["vocab_size"] = vocab.size()
 
 model_id = opt["id"] if len(opt["id"]) > 1 else "0" + opt["id"]
 model_save_dir = opt["save_dir"] + "/" + model_id
@@ -155,10 +157,10 @@ file_logger = helper.FileLogger(
 # helper.print_config(opt)
 
 # model
-if opt["bert"]:
-    model = BertRelationModel(opt, model_name=constant.BERT_MODEL)
-else:
-    model = RelationModel(opt, emb_matrix=emb_matrix)
+# if opt["bert"]:
+#     model = BertRelationModel(opt, model_name=constant.BERT_MODEL)
+# else:
+model = RelationModel(opt, emb_matrix=emb_matrix)
 
 id2label = dict([(v, k) for k, v in constant.LABEL_TO_ID.items()])
 dev_f1_history = []
@@ -174,32 +176,31 @@ max_steps = len(train_batch) * opt["num_epoch"]
 # start training
 for epoch in range(1, opt["num_epoch"] + 1):
     train_loss = 0
-    for i, batch in enumerate(train_batch):
-        print
-        start_time = time.time()
+    for i, batch in enumerate(tqdm(train_batch)):
+        # start_time = time.time()
         global_step += 1
         loss = model.update(batch)
         train_loss += loss
-        if global_step % opt["log_step"] == 0:
-            duration = time.time() - start_time
-            print(
-                format_str.format(
-                    datetime.now(),
-                    global_step,
-                    max_steps,
-                    epoch,
-                    opt["num_epoch"],
-                    loss,
-                    duration,
-                    current_lr,
-                )
-            )
+        # if global_step % opt["log_step"] == 0:
+        #     duration = time.time() - start_time
+        #     # print(
+            #     format_str.format(
+            #         datetime.now(),
+            #         global_step,
+            #         max_steps,
+            #         epoch,
+            #         opt["num_epoch"],
+            #         loss,
+            #         duration,
+            #         current_lr,
+            #     )
+            # )
 
     # eval on dev
     print("Evaluating on dev set...")
     predictions = []
     dev_loss = 0
-    for i, batch in enumerate(dev_batch):
+    for i, batch in tqdm(enumerate(dev_batch)):
         preds, _, loss = model.predict(batch)
         predictions += preds
         dev_loss += loss

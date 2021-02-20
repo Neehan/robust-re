@@ -6,7 +6,6 @@ import json
 import random
 import torch
 import numpy as np
-from transformers import BertTokenizer
 
 from utils import constant, helper, vocab
 
@@ -14,20 +13,15 @@ class DataLoader(object):
     """
     Load data from json files, preprocess and prepare batches.
     """
-    def __init__(self, source, batch_size, opt, vocab, evaluation=False, load_from_file=True):
+    def __init__(self, filename, batch_size, opt, vocab, evaluation=False):
         self.batch_size = batch_size
         self.opt = opt
         self.vocab = vocab
         self.eval = evaluation
 
-        if load_from_file:
-            with open(source) as infile:
-                data = json.load(infile)
-                infile.close()
-        else:
-            data = json.loads(source)
-
-        data = self.preprocess(data, vocab, opt, opt['bert'])
+        with open(filename) as infile:
+            data = json.load(infile)
+        data = self.preprocess(data, vocab, opt)
         # shuffle for training
         if not evaluation:
             indices = list(range(len(data)))
@@ -40,12 +34,11 @@ class DataLoader(object):
         # chunk into batches
         data = [data[i:i+batch_size] for i in range(0, len(data), batch_size)]
         self.data = data
-        # print("{} batches created for {}".format(len(data), source))
+        print("{} batches created for {}".format(len(data), filename))
 
-    def preprocess(self, data, vocab, opt, use_bert):
+    def preprocess(self, data, vocab, opt):
         """ Preprocess the data and convert to ids. """
         processed = []
-        # TODO
         for d in data:
             tokens = d['token']
             if opt['lower']:
@@ -55,32 +48,13 @@ class DataLoader(object):
             os, oe = d['obj_start'], d['obj_end']
             tokens[ss:se+1] = ['SUBJ-'+d['subj_type']] * (se-ss+1)
             tokens[os:oe+1] = ['OBJ-'+d['obj_type']] * (oe-os+1)
-            
-            # if use_bert:
-            #     # bert uses wordpiece tokenization, so split each token
-            #     # into bert tokens
-            #     bert_tokens, bert_ner, bert_pos = [], [], []
-            #     for i, token in enumerate(tokens):
-            #         # bert vocab has a tokenizer
-            #         bert_token = vocab.tokenizer.tokenize(token)
-            #         bert_tokens += bert_token
-            #         bert_ner += [d['stanford_ner'][i]]*len(bert_token)
-            #         bert_pos += [d['stanford_pos'][i]]*len(bert_token)
-
-            #     tokens = bert_tokens
-            #     d['stanford_ner'] = bert_ner
-            #     d['stanford_pos'] = bert_pos
-
-
             tokens = map_to_ids(tokens, vocab.word2id)
             pos = map_to_ids(d['stanford_pos'], constant.POS_TO_ID)
             ner = map_to_ids(d['stanford_ner'], constant.NER_TO_ID)
-            # deprel = map_to_ids(d['stanford_deprel'], constant.DEPREL_TO_ID)
             l = len(tokens)
             subj_positions = get_positions(d['subj_start'], d['subj_end'], l)
             obj_positions = get_positions(d['obj_start'], d['obj_end'], l)
             relation = constant.LABEL_TO_ID[d['relation']]
-                                            #deprel: arg 3 (count from 0)
             processed += [(tokens, pos, ner, subj_positions, obj_positions, relation)]
         return processed
 
@@ -115,15 +89,14 @@ class DataLoader(object):
 
         # convert to tensors
         words = get_long_tensor(words, batch_size)
-        masks = torch.eq(words, constant.PAD_ID)
+        masks = torch.eq(words, 0)
         pos = get_long_tensor(batch[1], batch_size)
         ner = get_long_tensor(batch[2], batch_size)
-        # deprel = get_long_tensor(batch[3], batch_size)
         subj_positions = get_long_tensor(batch[3], batch_size)
         obj_positions = get_long_tensor(batch[4], batch_size)
 
         rels = torch.LongTensor(batch[5])
-        # deprel postion: 4 (count from 0)
+
         return (words, masks, pos, ner, subj_positions, obj_positions, rels, orig_idx)
 
     def __iter__(self):
@@ -157,4 +130,3 @@ def word_dropout(tokens, dropout):
     """ Randomly dropout tokens (IDs) and replace them with <UNK> tokens. """
     return [constant.UNK_ID if x != constant.UNK_ID and np.random.random() < dropout \
             else x for x in tokens]
-
