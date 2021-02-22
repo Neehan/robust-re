@@ -54,7 +54,7 @@ def preprocess_data(args, data_json):
     convert text into torch dataloader object
     """
     texts, rationale = [], []
-    for x in data_json:
+    for x in tqdm(data_json):
         subj_start, subj_end = int(x["subj_start"]), int(x["subj_end"])
         obj_start, obj_end = int(x["obj_start"]), int(x["obj_end"])
         x["rationale"] = x.get("rationale", [False] * len(x["token"]))
@@ -123,6 +123,7 @@ def print_human_vs_model(test_json, pred_rationale):
 
 
 def evaluate(args, model, test_loader):
+    print("evaluate")
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     model.eval()
@@ -261,27 +262,31 @@ def train(args, train_loader, test_loader, test_json):
             loss.backward()
             optim.step()
 
-        if epoch % 3 == 2:
+        if epoch % 3 == 2 and not args.no_logs:
             total, correct, pred_rationale = evaluate(args, model, test_loader)
             print_score(args, total, correct)
             print_human_vs_model(test_json, pred_rationale)
     return model
 
-def save_dataset(data_json, filepath):
+def save_dataset(data_json, filepath, pred_rationale):
     # remove special symbols
-    for x in data_json:
+    for i, x in enumerate(data_json):
         subj_start, subj_end = int(x["subj_start"]), int(x["subj_end"])
         obj_start, obj_end = int(x["obj_start"]), int(x["obj_end"])
+        x["rationale"] = pred_rationale[i]
 
         # remove $ before and after the subj
-        x, subj_start, subj_end, obj_start, obj_end = insert_symbol(x, '$', subj_start, subj_end, obj_start, obj_end)
+        x, subj_start, subj_end, obj_start, obj_end = delete_symbol(x, '$', subj_start, subj_end, obj_start, obj_end)
         # remove # before and after the obj
-        x, obj_start, obj_end, subj_start, subj_end = insert_symbol(x, '#', obj_start, obj_end, subj_start, subj_end)
+        x, obj_start, obj_end, subj_start, subj_end = delete_symbol(x, '#', obj_start, obj_end, subj_start, subj_end)
 
         x["subj_start"] = subj_start
         x["subj_end"] = subj_end
         x["obj_start"] = obj_start
         x["obj_end"] = obj_end
+
+        assert len(x["token"]) == len(x["stanford_pos"])
+        assert len(x["rationale"]) == len(x["stanford_pos"])
     
     with open(filepath, 'w') as outp:
         json.dump(data_json, outp)
@@ -299,6 +304,7 @@ def main():
     parser.add_argument('--num_epoch', help="number of epochs", default=5, type=int)
     parser.add_argument('--lr', help="learning rate", default=1e-5, type=float)
     parser.add_argument('--do_train', help="train a new model", action='store_true')
+    parser.add_argument('--no_logs', help="no intermediate logs (saves time)", action='store_true')
     
     args = parser.parse_args()
     rationale_json = load_datafile(args.data_dir+args.ratdataset)
@@ -321,7 +327,7 @@ def main():
     print_score(args, total, correct)
     print_human_vs_model(test_json, pred_rationale)
 
-    save_dataset(test_json, args.data_dir+'_rationale_'+args.testset)
+    save_dataset(test_json, args.data_dir+'_rationale_'+args.testset, pred_rationale)
 
 
 
