@@ -40,11 +40,15 @@ class RelationModel(object):
         self.model.train()
         self.optimizer.zero_grad()
         if self.opt['attn']:
-            logits, _, attn_weights = self.model(inputs)
-            nll = self.criterion(logits, labels)
-            attn_loss = self.attn_loss(attn_weights, F.softmax(rationale, dim=1))
-            print(nll, attn_loss)
-            loss = nll + attn_loss
+            logits, attn_hidden, attn_weights = self.model(inputs)
+            nll_loss = self.criterion(logits, labels)
+            # rat_hidden = F.softmax(rationale.float(), dim=1).unsqueeze(1).bmm(pre_attn_hidden).squeeze(1)
+            # cosine sim is maximized, hence negative
+            rationale = F.softmax(rationale.float(), dim=1)
+            attn_loss = -self.attn_loss(rationale, attn_weights).abs().mean()
+            # print("NLL:", nll_loss)
+            # print("ATTN:", attn_loss)
+            loss = nll_loss + 0.2*attn_loss
         else:
             loss = self.criterion(logits, labels)
 
@@ -53,7 +57,7 @@ class RelationModel(object):
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.opt['max_grad_norm'])
         self.optimizer.step()
         loss_val = loss.data.item()
-        return loss_val
+        return loss_val, nll_loss.data.item(), attn_loss.data.item()
 
     def predict(self, batch, unsort=True):
         """ Run forward prediction. If unsort is True, recover the original order of the batch. """
@@ -70,7 +74,10 @@ class RelationModel(object):
 
         # forward
         self.model.eval()
-        logits, _ = self.model(inputs)
+        if self.opt['attn']:
+            logits,_ ,_ = self.model(inputs)
+        else:
+            logits, _ = self.model(inputs)
         loss = self.criterion(logits, labels)
         probs = F.softmax(logits, dim=1).data.cpu().numpy().tolist()
         predictions = np.argmax(logits.data.cpu().numpy(), axis=1).tolist()
