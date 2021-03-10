@@ -27,9 +27,6 @@ VOCAB_PREFIX = [PAD_TOKEN, UNK_TOKEN]
 SUBJ_NER_TO_ID = {
     PAD_TOKEN: PAD_ID,
     UNK_TOKEN: UNK_ID,
-    # "ORGANIZATION": 2,
-    # "PERSON": 3
-    # using type
     "ORG": 2,
     "LOC": 3,
     "FAC": 4,
@@ -41,26 +38,7 @@ SUBJ_NER_TO_ID = {
 
 OBJ_NER_TO_ID = {
     PAD_TOKEN: PAD_ID,
-    UNK_TOKEN: UNK_ID,
-    # "PERSON": 2,
-    # "ORGANIZATION": 3,
-    # "DATE": 4,
-    # "NUMBER": 5,
-    # "TITLE": 6,
-    # "COUNTRY": 7,
-    # "LOCATION": 8,
-    # "CITY": 9,
-    # "MISC": 10,
-    # "STATE_OR_PROVINCE": 11,
-    # "DURATION": 12,
-    # "NATIONALITY": 13,
-    # "CAUSE_OF_DEATH": 14,
-    # "CRIMINAL_CHARGE": 15,
-    # "RELIGION": 16,
-    # "URL": 17,
-    # "IDEOLOGY": 18,
-   
-    ## using type
+    UNK_TOKEN: UNK_ID,   
     "ORG": 2,
     "LOC": 3,
     "FAC": 4,
@@ -74,38 +52,14 @@ OBJ_NER_TO_ID = {
 NER_TO_ID = {
     PAD_TOKEN: PAD_ID,
     UNK_TOKEN: UNK_ID,
-    # "O": 2,
-    # "PERSON": 3,
-    # "ORGANIZATION": 4,
-    # "LOCATION": 5,
-    # "DATE": 6,
-    # "NUMBER": 7,
-    # "MISC": 8,
-    # "DURATION": 9,
-    # "MONEY": 10,
-    # "PERCENT": 11,
-    # "ORDINAL": 12,
-    # "TIME": 13,
-    # "SET": 14,
-    "FAC": 2,
-    "TIME": 3,
-    "EVENT": 4,
-    "PERSON": 5,
-    "DATE": 6,
-    "CARDINAL": 7,
-    "PRODUCT": 8,
-    "WORK_OF_ART": 9,
-    "ORG": 10,
-    "ORDINAL": 11,
-    "PERCENT": 12,
-    "GPE": 13,
-    "LOC": 14,
-    "MONEY": 15,
-    "NORP": 16,
-    "LANGUAGE": 17,
-    "QUANTITY": 18,
-    "LAW": 19,
-    "O": 20,
+    "ORG": 2,
+    "LOC": 3,
+    "FAC": 4,
+    "WEA": 5,
+    "GPE": 6,
+    "PER": 7,
+    "VEH": 8,
+    "O": 9,
 }
 
 POS_TO_ID = {
@@ -204,13 +158,20 @@ LABEL_TO_ID = {
 
     ## using subtype
     # using type
+    
     "no_relation": 0,
-    "PART-WHOLE": 1,
-    "PER-SOC": 2,
-    "PHYS": 3,
-    "GEN-AFF": 4,
-    "ART": 5,
-    "ORG-AFF": 6,
+    "PART-WHOLE(e1,e2)": 1,
+    "PER-SOC(e1,e2)": 2,
+    "PHYS(e1,e2)": 3,
+    "GEN-AFF(e1,e2)": 4,
+    "ART(e1,e2)": 5,
+    "ORG-AFF(e1,e2)": 6,
+    "PART-WHOLE(e2,e1)": 7,
+    "PER-SOC(e2,e1)": 8,
+    "PHYS(e2,e1)": 9,
+    "GEN-AFF(e2,e1)": 10,
+    "ART(e2,e1)": 11,
+    "ORG-AFF(e2,e1)": 12,
 }
 
 INFINITY_NUMBER = 1e12

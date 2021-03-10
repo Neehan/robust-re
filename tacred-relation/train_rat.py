@@ -4,26 +4,28 @@ Train a model on TACRED.
 
 
 import os
-from datetime import datetime
+# from datetime import datetime
 import time
 import numpy as np
 import random
 import argparse
 from shutil import copyfile
 import torch
-import torch.nn as nn
-import torch.optim as optim
+# import torch.nn as nn
+# import torch.optim as optim
 from tqdm import tqdm
 
 from data.loader_rat import DataLoader
 from model.rnn_rat import RelationModel
+
 # from model.bert_rnn import BertRelationModel
 from utils import scorer, constant, helper
 from utils.vocab import Vocab
+
 # from utils.bert_vocab import BERTVocab
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--data_dir", type=str, default="dataset/tacred")
+parser.add_argument("--data_dir", type=str, default="dataset/final")
 parser.add_argument("--data_name", type=str, default="rationale_train.json")
 parser.add_argument("--test_name", type=str, default="rationale_dev.json")
 parser.add_argument("--vocab_dir", type=str, default="dataset/vocab")
@@ -64,8 +66,10 @@ parser.add_argument(
     "--pe_dim", type=int, default=30, help="Position encoding dimension."
 )
 
-parser.add_argument("--lr", type=float, default=4, help="Applies to SGD and Adagrad.")
-parser.add_argument("--lr_decay", type=float, default=0.9)
+parser.add_argument("--lr", type=float, default=1, help="Applies to SGD and Adagrad.")
+parser.add_argument("--lr_decay", type=float, default=0.95)
+parser.add_argument("--loss_scaler", type=float, default=0.05)
+parser.add_argument("--loss_scaler_decay", type=float, default=0.9)
 parser.add_argument(
     "--optim", type=str, default="sgd", help="sgd, adagrad, adam or adamax."
 )
@@ -85,7 +89,7 @@ parser.add_argument(
     "--save_dir", type=str, default="./saved_models", help="Root dir for saving models."
 )
 parser.add_argument(
-    "--id", type=str, default="00", help="Model ID under which to save models."
+    "--id", type=str, default="rat00", help="Model ID under which to save models."
 )
 parser.add_argument(
     "--info", type=str, default="", help="Optional info for the experiment."
@@ -135,7 +139,11 @@ train_batch = DataLoader(
     evaluation=False,
 )
 dev_batch = DataLoader(
-    opt["data_dir"] + "/" + opt["test_name"], opt["batch_size"], opt, vocab, evaluation=True
+    opt["data_dir"] + "/" + opt["test_name"],
+    opt["batch_size"],
+    opt,
+    vocab,
+    evaluation=True,
 )
 
 # if opt["bert"]:
@@ -186,17 +194,17 @@ for epoch in range(1, opt["num_epoch"] + 1):
         # if global_step % opt["log_step"] == 0:
         #     duration = time.time() - start_time
         #     # print(
-            #     format_str.format(
-            #         datetime.now(),
-            #         global_step,
-            #         max_steps,
-            #         epoch,
-            #         opt["num_epoch"],
-            #         loss,
-            #         duration,
-            #         current_lr,
-            #     )
-            # )
+        #     format_str.format(
+        #         datetime.now(),
+        #         global_step,
+        #         max_steps,
+        #         epoch,
+        #         opt["num_epoch"],
+        #         loss,
+        #         duration,
+        #         current_lr,
+        #     )
+        # )
 
     # eval on dev
     print("Evaluating on dev set...")
@@ -216,15 +224,11 @@ for epoch in range(1, opt["num_epoch"] + 1):
     train_loss = (
         train_loss / train_batch.num_examples * opt["batch_size"]
     )  # avg loss per batch
-    
-    train_nll_loss = (
-        train_nll_loss / train_batch.num_examples * opt["batch_size"]
-    )
 
-    train_attn_loss = (
-        train_attn_loss / train_batch.num_examples * opt["batch_size"]
-    )
-    
+    train_nll_loss = train_nll_loss / train_batch.num_examples * opt["batch_size"]
+
+    train_attn_loss = train_attn_loss / train_batch.num_examples * opt["batch_size"]
+
     dev_loss = dev_loss / dev_batch.num_examples * opt["batch_size"]
     print(
         "epoch {}: train_loss = {:.6f}, train_nll = {:.6f}, train_cossim = {:.6f}, dev_loss = {:.6f}, dev_f1 = {:.4f}".format(

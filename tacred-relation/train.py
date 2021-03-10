@@ -23,9 +23,9 @@ from utils.vocab import Vocab
 # from utils.bert_vocab import BERTVocab
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--data_dir", type=str, default="dataset/tacred")
-parser.add_argument("--data_name", type=str, default="train.json")
-parser.add_argument("--test_name", type=str, default="dev.json")
+parser.add_argument("--data_dir", type=str, default="dataset/ace2005/final")
+parser.add_argument("--data_name", type=str, default="rationale_train.json")
+parser.add_argument("--test_name", type=str, default="rationale_dev.json")
 parser.add_argument("--vocab_dir", type=str, default="dataset/vocab")
 parser.add_argument(
     "--emb_dim", type=int, default=300, help="Word embedding dimension."
