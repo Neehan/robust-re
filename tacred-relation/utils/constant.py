@@ -19,7 +19,7 @@ MAX_LEN = 300
 # vocab
 PAD_TOKEN = "<PAD>"
 UNK_TOKEN = "<UNK>"
-PAD_ID, UNK_ID =  0, 1#tokenizer.convert_tokens_to_ids([PAD_TOKEN, UNK_TOKEN])
+PAD_ID, UNK_ID = 0, 1  # tokenizer.convert_tokens_to_ids([PAD_TOKEN, UNK_TOKEN])
 
 VOCAB_PREFIX = [PAD_TOKEN, UNK_TOKEN]
 
@@ -34,11 +34,20 @@ SUBJ_NER_TO_ID = {
     "GPE": 6,
     "PER": 7,
     "VEH": 8,
+    "MISC": 9,
+    "MONEY": 10,
+    "NUMBER": 11,
+    "ORDINAL": 12,
+    "PERCENT": 13,
+    "DATE": 14,
+    "TIME": 15,
+    "DURATION": 16,
+    "SET": 17,
 }
 
 OBJ_NER_TO_ID = {
     PAD_TOKEN: PAD_ID,
-    UNK_TOKEN: UNK_ID,   
+    UNK_TOKEN: UNK_ID,
     "ORG": 2,
     "LOC": 3,
     "FAC": 4,
@@ -46,6 +55,15 @@ OBJ_NER_TO_ID = {
     "GPE": 6,
     "PER": 7,
     "VEH": 8,
+    "MISC": 9,
+    "MONEY": 10,
+    "NUMBER": 11,
+    "ORDINAL": 12,
+    "PERCENT": 13,
+    "DATE": 14,
+    "TIME": 15,
+    "DURATION": 16,
+    "SET": 17,
 }
 
 
@@ -155,10 +173,8 @@ LABEL_TO_ID = {
     # "per:country_of_birth": 39,
     # "org:dissolved": 40,
     # "per:country_of_death": 41,
-
     ## using subtype
     # using type
-    
     "no_relation": 0,
     "PART-WHOLE(e1,e2)": 1,
     "PER-SOC(e1,e2)": 2,

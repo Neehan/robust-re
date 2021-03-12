@@ -46,8 +46,8 @@ class DataLoader(object):
             # anonymize tokens
             ss, se = d['subj_start'], d['subj_end']
             os, oe = d['obj_start'], d['obj_end']
-            tokens[ss:se+1] = ['SUBJ-'+d['subj_type']] * (se-ss+1)
-            tokens[os:oe+1] = ['OBJ-'+d['obj_type']] * (oe-os+1)
+            # tokens[ss:se+1] = ['SUBJ-'+d['subj_type']] * (se-ss+1)
+            # tokens[os:oe+1] = ['OBJ-'+d['obj_type']] * (oe-os+1)
             tokens = map_to_ids(tokens, vocab.word2id)
             pos = map_to_ids(d['stanford_pos'], constant.POS_TO_ID)
             ner = map_to_ids(d['stanford_ner'], constant.NER_TO_ID)
@@ -104,7 +104,7 @@ class DataLoader(object):
             yield self.__getitem__(i)
 
 def map_to_ids(tokens, vocab):
-    ids = [vocab[t] if t in vocab else constant.UNK_ID for t in tokens]
+    ids = [vocab[t] if t in vocab and t != '<UNK>' else constant.UNK_ID for t in tokens]
     return ids
 
 def get_positions(start_idx, end_idx, length):

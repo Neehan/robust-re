@@ -34,8 +34,8 @@ class RelationModel(object):
     def cos_sim(self, inputs, labels, rationale):
         logits, attn_hidden, pre_attn_hidden = self.model(inputs)
         nll_loss = self.criterion(logits, labels)
-        # rationale = F.softmax(rationale.float(), dim=1)
-        rationale = rationale.float()
+        rationale = F.softmax(rationale.float(), dim=1)
+        # rationale = rationale.float()
         rat_hidden = rationale.unsqueeze(1).bmm(pre_attn_hidden).squeeze(1)
         attn_loss = -torch.norm(self.attn_loss(rat_hidden, attn_hidden))
         loss = nll_loss + self.loss_scaler * attn_loss
