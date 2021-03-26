@@ -54,7 +54,8 @@ class DataLoader(object):
             pos = map_to_ids(d["stanford_pos"], constant.POS_TO_ID)
             ner = map_to_ids(d["stanford_ner"], constant.NER_TO_ID)
             # rationale is a bool vector, change it to -1, +1
-            rationale = d["rationale"]
+            rationale = d["rationale"]#[2 * rat - 1 for rat in d["rationale"]]
+            
             l = len(tokens)
             subj_positions = get_positions(d["subj_start"], d["subj_end"], l)
             obj_positions = get_positions(d["obj_start"], d["obj_end"], l)

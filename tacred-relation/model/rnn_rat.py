@@ -32,22 +32,38 @@ class RelationModel(object):
         )
 
     def cos_sim(self, inputs, labels, rationale):
-        logits, attn_hidden, pre_attn_hidden = self.model(inputs)
+        logits, attn_weights, attn_hidden, pre_attn_hidden = self.model(inputs)
         nll_loss = self.criterion(logits, labels)
-        rationale = F.softmax(rationale.float(), dim=1)
-        # rationale = rationale.float()
-        rat_hidden = rationale.unsqueeze(1).bmm(pre_attn_hidden).squeeze(1)
-        attn_loss = -torch.norm(self.attn_loss(rat_hidden, attn_hidden))
+        non_rationale = F.softmax(1-rationale.float(), dim=1)
+        rat_hidden = non_rationale.unsqueeze(1).bmm(pre_attn_hidden).squeeze(1)
+        # discard attention loss from negative data points
+        # since rationale from neg. data points is not
+        # well defined.
+        no_relation_label = constant.LABEL_TO_ID["no_relation"]
+        attn_loss = (labels != no_relation_label) * self.attn_loss(
+            rat_hidden, attn_hidden
+        )
+        attn_loss = torch.mean(attn_loss.abs())
         loss = nll_loss + self.loss_scaler * attn_loss
         return loss, nll_loss, attn_loss, logits
     
+    def hadamard(self, inputs, labels, rationale):
+        logits, attn_weights, attn_hidden, pre_attn_hidden = self.model(inputs)
+        nll_loss = self.criterion(logits, labels)
+        non_rationale = F.softmax(1-rationale.float(), dim=1)
+        
+        no_relation_label = constant.LABEL_TO_ID["no_relation"]
+        attn_loss = torch.sum(non_rationale * attn_weights * (labels != no_relation_label)[:, None])
+        loss = nll_loss + self.loss_scaler * attn_loss
+        return loss, nll_loss, attn_loss, logits
+
     def kl_div(self, inputs, labels, rationale):
-        logits, attn_hidden, attn_weights = self.model(inputs)
+        logits, attn_weights, attn_hidden, pre_attn_hidden = self.model(inputs)
         nll_loss = self.criterion(logits, labels)
         rationale = F.softmax(rationale.float(), dim=1)
         attn_weights = F.log_softmax(attn_weights, dim=1)
         attn_loss = self.attn_loss(attn_weights, rationale)
-        loss = nll_loss + self.loss_scaler*attn_loss
+        loss = nll_loss + self.loss_scaler * attn_loss
         return loss, nll_loss, attn_loss, logits
 
     def update(self, batch):
@@ -61,6 +77,12 @@ class RelationModel(object):
             labels = batch[6]
             rationale = batch[7]
 
+        # no_relation_label = constant.LABEL_TO_ID["no_relation"]
+        # clear out the rationales with no_relation as they do not
+        # make sense
+        # rationale = rationale * (labels != no_relation_label)[:, None]
+
+        inputs.append(rationale)
         # step forward
         self.model.train()
         self.optimizer.zero_grad()
@@ -76,27 +98,29 @@ class RelationModel(object):
         return loss_val, nll_loss.data.item(), attn_loss.data.item()
 
     def predict(self, batch, unsort=True):
-        """ 
+        """
         Run forward prediction. If unsort is True,
         recover the original order of the batch.
         """
         if self.opt["cuda"]:
             inputs = [b.cuda() for b in batch[:6]]
             labels = batch[6].cuda()
-            # rationale = batch[7].cuda()
+            rationale = batch[7].cuda()
         else:
             inputs = [b for b in batch[:6]]
             labels = batch[6]
-            # rationale = batch[7]
+            rationale = batch[7]
+
+        inputs.append(rationale)
 
         orig_idx = batch[8]
 
         # forward
         self.model.eval()
         if self.opt["attn"]:
-            logits, _, _ = self.model(inputs)
+            logits, _, _, _ = self.model(inputs)
         else:
-            logits, _ = self.model(inputs)
+            logits, _, _ = self.model(inputs)
         loss = self.criterion(logits, labels)
         probs = F.softmax(logits, dim=1).data.cpu().numpy().tolist()
         predictions = np.argmax(logits.data.cpu().numpy(), axis=1).tolist()
@@ -158,9 +182,14 @@ class PositionAwareRNN(nn.Module):
 
         if opt["attn"]:
             self.attn_layer = layers.PositionAwareAttention(
-                opt["hidden_dim"], opt["hidden_dim"], 2 * opt["pe_dim"], opt["attn_dim"]
+                opt["hidden_dim"],
+                opt["hidden_dim"],
+                2 * opt["pe_dim"],
+                opt["attn_dim"],
+                opt["rat_dim"],
             )
             self.pe_emb = nn.Embedding(constant.MAX_LEN * 2 + 1, opt["pe_dim"])
+            self.rat_emb = nn.Embedding(constant.MAX_LEN * 2 + 1, opt["rat_dim"])
 
         self.opt = opt
         self.topn = self.opt.get("topn", 1e10)
@@ -185,6 +214,7 @@ class PositionAwareRNN(nn.Module):
         init.xavier_uniform_(self.linear.weight, gain=1)  # initialize linear layer
         if self.opt["attn"]:
             self.pe_emb.weight.data.uniform_(-1.0, 1.0)
+            self.rat_emb.weight.data.uniform_(-1.0, 1.0)
 
         # decide finetuning
         if self.topn <= 0:
@@ -207,7 +237,7 @@ class PositionAwareRNN(nn.Module):
             return h0, c0
 
     def forward(self, inputs):
-        words, masks, pos, ner, subj_pos, obj_pos = inputs  # unpack
+        words, masks, pos, ner, subj_pos, obj_pos, rationale = inputs  # unpack
         # print(f"words:{words}\n\nmasks:{masks}\n\npos:{pos}\n\nner:{ner}\n\nsubj_pos{subj_pos}\nobj_pos:{obj_pos}")
         # raise ValueError("need to quit")
         # print(masks.data.eq(constant.PAD_ID).long().sum(1).shape)
@@ -241,9 +271,10 @@ class PositionAwareRNN(nn.Module):
             # e.g., -2 -1 0 1 will be mapped to 98 99 100 101
             subj_pe_inputs = self.pe_emb(subj_pos + constant.MAX_LEN)
             obj_pe_inputs = self.pe_emb(obj_pos + constant.MAX_LEN)
+            rat_features = self.rat_emb(rationale + constant.MAX_LEN)
             pe_features = torch.cat((subj_pe_inputs, obj_pe_inputs), dim=2)
             final_hidden, attn_weights = self.attn_layer(
-                outputs, masks, hidden, pe_features
+                outputs, masks, hidden, pe_features, rat_features
             )
         else:
             final_hidden = hidden
@@ -251,6 +282,6 @@ class PositionAwareRNN(nn.Module):
         logits = self.linear(final_hidden)
 
         if self.opt["attn"]:
-            return logits, final_hidden, outputs
+            return logits, attn_weights, final_hidden, outputs
         else:
-            return logits, final_hidden
+            return logits, attn_weights, final_hidden

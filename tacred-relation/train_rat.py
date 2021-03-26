@@ -25,7 +25,7 @@ from utils.vocab import Vocab
 # from utils.bert_vocab import BERTVocab
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--data_dir", type=str, default="dataset/final")
+parser.add_argument("--data_dir", type=str, default="dataset/ace2005/final")
 parser.add_argument("--data_name", type=str, default="rationale_train.json")
 parser.add_argument("--test_name", type=str, default="rationale_dev.json")
 parser.add_argument("--vocab_dir", type=str, default="dataset/vocab")
@@ -65,9 +65,12 @@ parser.add_argument("--attn_dim", type=int, default=200, help="Attention size.")
 parser.add_argument(
     "--pe_dim", type=int, default=30, help="Position encoding dimension."
 )
+parser.add_argument(
+    "--rat_dim", type=int, default=30, help="Rationale dimension."
+)
 
-parser.add_argument("--lr", type=float, default=1, help="Applies to SGD and Adagrad.")
-parser.add_argument("--lr_decay", type=float, default=0.95)
+parser.add_argument("--lr", type=float, default=1.0, help="Applies to SGD and Adagrad.")
+parser.add_argument("--lr_decay", type=float, default=0.9)
 parser.add_argument("--loss_scaler", type=float, default=0.05)
 parser.add_argument("--loss_scaler_decay", type=float, default=0.9)
 parser.add_argument(
