@@ -67,7 +67,7 @@ parser.add_argument(
 parser.add_argument("--lr", type=float, default=1.0, help="Applies to SGD and Adagrad.")
 parser.add_argument("--lr_decay", type=float, default=0.9)
 parser.add_argument(
-    "--optim", type=str, default="adagrad", help="sgd, adagrad, adam or adamax."
+    "--optim", type=str, default="sgd", help="sgd, adagrad, adam or adamax."
 )
 parser.add_argument("--num_epoch", type=int, default=30)
 parser.add_argument("--batch_size", type=int, default=50)
@@ -201,7 +201,7 @@ for epoch in range(1, opt["num_epoch"] + 1):
     predictions = []
     dev_loss = 0
     for i, batch in tqdm(enumerate(dev_batch)):
-        preds, _, loss = model.predict(batch)
+        preds, _, _, loss = model.predict(batch)
         predictions += preds
         dev_loss += loss
     predictions = [id2label[p] for p in predictions]

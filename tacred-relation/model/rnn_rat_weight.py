@@ -1,6 +1,7 @@
 """
 A rnn model for relation extraction, written in pytorch.
 """
+import math
 import numpy as np
 import torch
 from torch import nn
@@ -21,8 +22,6 @@ class RelationModel(object):
         # self.attn_loss = nn.KLDivLoss(reduction='sum')
         self.attn_loss = nn.CosineSimilarity()
         self.loss_scaler = opt["loss_scaler"]
-        self.rat_scaler = opt["rat_scaler"]
-        self.nonrat_scaler = opt["nonrat_scaler"]
         self.parameters = [p for p in self.model.parameters() if p.requires_grad]
         if opt["cuda"]:
             print("starting cuda.")
@@ -36,27 +35,17 @@ class RelationModel(object):
         logits, attn_weights, attn_hidden, pre_attn_hidden = self.model(inputs)
         nll_loss = self.criterion(logits, labels)
         non_rationale = F.softmax(1-rationale.float(), dim=1)
-        nonrat_hidden = non_rationale.unsqueeze(1).bmm(pre_attn_hidden).squeeze(1)
-        rat_hidden = F.softmax(rationale.float(), dim=1).unsqueeze(1).bmm(pre_attn_hidden).squeeze(1)
-
+        rat_hidden = non_rationale.unsqueeze(1).bmm(pre_attn_hidden).squeeze(1)
         # discard attention loss from negative data points
         # since rationale from neg. data points is not
         # well defined.
         no_relation_label = constant.LABEL_TO_ID["no_relation"]
-        rat_loss = (labels != no_relation_label) * self.attn_loss(
+        attn_loss = (labels != no_relation_label) * self.attn_loss(
             rat_hidden, attn_hidden
         )
-        # maximize rat cossim
-        rat_loss = -torch.sum(rat_loss.abs())
-
-        nonrat_loss = (labels != no_relation_label) * self.attn_loss(
-            nonrat_hidden, attn_hidden
-        )
-        nonrat_loss = torch.sum(nonrat_loss.abs())
-
-        # attn_loss = torch.mean(rat_loss.abs())
-        loss = nll_loss + self.rat_scaler * rat_loss + self.nonrat_scaler * nonrat_loss
-        return loss, nll_loss, rat_loss, nonrat_loss, logits
+        attn_loss = torch.mean(attn_loss.abs())
+        loss = nll_loss #+ self.loss_scaler * attn_loss
+        return loss, nll_loss, attn_loss, logits
     
     def hadamard(self, inputs, labels, rationale):
         logits, attn_weights, attn_hidden, pre_attn_hidden = self.model(inputs)
@@ -97,7 +86,7 @@ class RelationModel(object):
         # step forward
         self.model.train()
         self.optimizer.zero_grad()
-        loss, nll_loss, rat_loss, nonrat_loss, _ = self.cos_sim(inputs, labels, rationale)
+        loss, nll_loss, attn_loss, _ = self.cos_sim(inputs, labels, rationale)
 
         # backward
         loss.backward()
@@ -106,7 +95,7 @@ class RelationModel(object):
         )
         self.optimizer.step()
         loss_val = loss.data.item()
-        return loss_val, nll_loss.data.item(), rat_loss.data.item(), nonrat_loss.data.item()
+        return loss_val, nll_loss.data.item(), attn_loss.data.item()
 
     def predict(self, batch, unsort=True):
         """
@@ -128,15 +117,18 @@ class RelationModel(object):
 
         # forward
         self.model.eval()
-        logits, attn_weights, _, _ = self.model(inputs)
+        if self.opt["attn"]:
+            logits, _, _, _ = self.model(inputs)
+        else:
+            logits, _, _ = self.model(inputs)
         loss = self.criterion(logits, labels)
         probs = F.softmax(logits, dim=1).data.cpu().numpy().tolist()
         predictions = np.argmax(logits.data.cpu().numpy(), axis=1).tolist()
         if unsort:
-            _, predictions, probs, attn_weights = [
-                list(t) for t in zip(*sorted(zip(orig_idx, predictions, probs, attn_weights)))
+            _, predictions, probs = [
+                list(t) for t in zip(*sorted(zip(orig_idx, predictions, probs)))
             ]
-        return predictions, probs, attn_weights, loss.data.item()
+        return predictions, probs, loss.data.item()
 
     def update_lr(self, new_lr):
         torch_utils.change_lr(self.optimizer, new_lr)
@@ -287,6 +279,8 @@ class PositionAwareRNN(nn.Module):
         else:
             final_hidden = hidden
 
+        rat_weights = F.softmax(rationale.float(), dim=1)
+        final_hidden = rat_weights.unsqueeze(1).bmm(outputs).squeeze(1)
         logits = self.linear(final_hidden)
 
         if self.opt["attn"]:

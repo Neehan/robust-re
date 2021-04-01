@@ -16,7 +16,7 @@ import torch
 from tqdm import tqdm
 
 from data.loader_rat import DataLoader
-from model.rnn_rat import RelationModel
+from model.rnn_rat_weight import RelationModel
 
 # from model.bert_rnn import BertRelationModel
 from utils import scorer, constant, helper
@@ -72,8 +72,6 @@ parser.add_argument(
 parser.add_argument("--lr", type=float, default=1.0, help="Applies to SGD and Adagrad.")
 parser.add_argument("--lr_decay", type=float, default=0.9)
 parser.add_argument("--loss_scaler", type=float, default=0.05)
-parser.add_argument("--rat_scaler", type=float, default=0.01)
-parser.add_argument("--nonrat_scaler", type=float, default=0.10)
 parser.add_argument("--loss_scaler_decay", type=float, default=0.9)
 parser.add_argument(
     "--optim", type=str, default="sgd", help="sgd, adagrad, adam or adamax."
@@ -188,16 +186,14 @@ max_steps = len(train_batch) * opt["num_epoch"]
 
 # start training
 for epoch in range(1, opt["num_epoch"] + 1):
-    train_loss, train_nll_loss, train_rat_loss, train_nonrat_loss = 0, 0, 0, 0
+    train_loss, train_nll_loss, train_attn_loss = 0, 0, 0
     for i, batch in enumerate(tqdm(train_batch)):
         # start_time = time.time()
         global_step += 1
-        loss, nll_loss, rat_loss, nonrat_loss = model.update(batch)
+        loss, nll_loss, attn_loss = model.update(batch)
         train_loss += loss
         train_nll_loss += nll_loss
-        train_rat_loss += rat_loss
-        train_nonrat_loss += nonrat_loss
-
+        train_attn_loss += attn_loss
         # if global_step % opt["log_step"] == 0:
         #     duration = time.time() - start_time
         #     # print(
@@ -218,7 +214,7 @@ for epoch in range(1, opt["num_epoch"] + 1):
     predictions = []
     dev_loss = 0
     for i, batch in tqdm(enumerate(dev_batch)):
-        preds, _, _, loss = model.predict(batch)
+        preds, _, loss = model.predict(batch)
         predictions += preds
         dev_loss += loss
     predictions = [id2label[p] for p in predictions]
@@ -234,13 +230,12 @@ for epoch in range(1, opt["num_epoch"] + 1):
 
     train_nll_loss = train_nll_loss / train_batch.num_examples * opt["batch_size"]
 
-    train_rat_loss = train_rat_loss / train_batch.num_examples * opt["batch_size"]
-    train_nonrat_loss = train_nonrat_loss / train_batch.num_examples * opt["batch_size"]
+    train_attn_loss = train_attn_loss / train_batch.num_examples * opt["batch_size"]
 
     dev_loss = dev_loss / dev_batch.num_examples * opt["batch_size"]
     print(
-        "epoch {}: train_loss = {:.6f}, train_nll = {:.6f}, train_rat_loss = {:.6f}, train_nonrat_loss = {:.6f}, dev_loss = {:.6f}, dev_f1 = {:.4f}".format(
-            epoch, train_loss, train_nll_loss, train_rat_loss, train_nonrat_loss, dev_loss, dev_f1
+        "epoch {}: train_loss = {:.6f}, train_nll = {:.6f}, train_cossim = {:.6f}, dev_loss = {:.6f}, dev_f1 = {:.4f}".format(
+            epoch, train_loss, train_nll_loss, train_attn_loss, dev_loss, dev_f1
         )
     )
     file_logger.log(

@@ -2,13 +2,13 @@
 Run evaluation with saved models.
 """
 
-import random
 import argparse
-import torch
+import random
 
-from data.loader import DataLoader
-from model.rnn import RelationModel
-from utils import torch_utils, scorer, constant
+import torch
+from data.loader_rat import DataLoader
+from model.rnn_rat_weight import RelationModel
+from utils import constant, helper, scorer, torch_utils
 from utils.vocab import Vocab
 
 parser = argparse.ArgumentParser()
@@ -17,12 +17,12 @@ parser.add_argument(
     "--model", type=str, default="best_model.pt", help="Name of the model file."
 )
 parser.add_argument("--data_dir", type=str, default="dataset/ace2005/final")
-parser.add_argument(
-    "--dataset", type=str, default="test", help="Evaluate on dev or test."
-)
-parser.add_argument(
-    "--out", type=str, default="", help="Save model predictions to this dir."
-)
+# parser.add_argument(
+#     "--dataset", type=str, default="test", help="Evaluate on dev or test."
+# )
+# parser.add_argument(
+#     "--out", type=str, default="", help="Save model predictions to this dir."
+# )
 
 parser.add_argument("--seed", type=int, default=1234)
 parser.add_argument("--cuda", type=bool, default=torch.cuda.is_available())
@@ -48,6 +48,7 @@ vocab_file = args.model_dir + "/vocab.pkl"
 vocab = Vocab(vocab_file, load=True)
 assert opt["vocab_size"] == vocab.size, "Vocab size must match that in the saved model."
 
+helper.print_config(opt)
 id2label = dict([(v, k) for k, v in constant.LABEL_TO_ID.items()])
 
 # load data
@@ -62,7 +63,7 @@ def get_scores(data_file, opt, vocab, model):
     predictions = []
     all_probs = []
     for i, b in enumerate(batch):
-        preds, probs, attn_weights, _ = model.predict(b)
+        preds, probs, _ = model.predict(b)
         predictions += preds
         all_probs += probs
     predictions = [id2label[p] for p in predictions]
@@ -77,6 +78,7 @@ def get_scores(data_file, opt, vocab, model):
 
 datasets = [
     "rationale_train",
+    # "rationale_synthetic_train",
     "rationale_dev",
     "rationale_un",
     "rationale_wl",

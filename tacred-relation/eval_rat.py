@@ -12,17 +12,18 @@ from utils import constant, helper, scorer, torch_utils
 from utils.vocab import Vocab
 
 parser = argparse.ArgumentParser()
-parser.add_argument("model_dir", type=str, help="Directory of the model.")
+parser.add_argument(
+    "model_dir", type=str, help="Directory of the model.")
 parser.add_argument(
     "--model", type=str, default="best_model.pt", help="Name of the model file."
 )
 parser.add_argument("--data_dir", type=str, default="dataset/ace2005/final")
-parser.add_argument(
-    "--dataset", type=str, default="test", help="Evaluate on dev or test."
-)
-parser.add_argument(
-    "--out", type=str, default="", help="Save model predictions to this dir."
-)
+# parser.add_argument(
+#     "--dataset", type=str, default="test", help="Evaluate on dev or test."
+# )
+# parser.add_argument(
+#     "--out", type=str, default="", help="Save model predictions to this dir."
+# )
 
 parser.add_argument("--seed", type=int, default=1234)
 parser.add_argument("--cuda", type=bool, default=torch.cuda.is_available())
@@ -48,33 +49,46 @@ vocab_file = args.model_dir + "/vocab.pkl"
 vocab = Vocab(vocab_file, load=True)
 assert opt["vocab_size"] == vocab.size, "Vocab size must match that in the saved model."
 
-# load data
-data_file = args.data_dir + "/{}.json".format(args.dataset)
-print("Loading data from {} with batch size {}...".format(data_file, opt["batch_size"]))
-batch = DataLoader(data_file, opt["batch_size"], opt, vocab, evaluation=True)
-
 helper.print_config(opt)
 id2label = dict([(v, k) for k, v in constant.LABEL_TO_ID.items()])
 
-predictions = []
-all_probs = []
-for i, b in enumerate(batch):
-    preds, probs, _ = model.predict(b)
-    predictions += preds
-    all_probs += probs
-predictions = [id2label[p] for p in predictions]
+# load data
+def get_scores(data_file, opt, vocab, model):
+    print(
+        "Loading data from {} with batch size {}...".format(
+            data_file, opt["batch_size"]
+        )
+    )
+    batch = DataLoader(data_file, opt["batch_size"], opt, vocab, evaluation=True)
 
-# print("predictions")
-# for a, b in zip(batch.gold(), predictions):
-# 	print(f"{a:<28} {b:<28}")
+    predictions = []
+    all_probs = []
+    for i, b in enumerate(batch):
+        preds, probs, attn_weights, _ = model.predict(b)
+        predictions += preds
+        all_probs += probs
+    predictions = [id2label[p] for p in predictions]
 
-p, r, f1 = scorer.score(batch.gold(), predictions, verbose=True)
+    # print("predictions")
+    # for a, b in zip(batch.gold(), predictions):
+    # 	print(f"{a:<28} {b:<28}")
 
-# save probability scores
-# if len(args.out) > 0:
-#     helper.ensure_dir(os.path.dirname(args.out))
-#     with open(args.out, 'wb') as outfile:
-#         pickle.dump(all_probs, outfile)
-#     print("Prediction scores saved to {}.".format(args.out))
+    p, r, f1 = scorer.score(batch.gold(), predictions, verbose=False)
+    return p, r, f1
 
+
+datasets = ["rationale_train", "rationale_dev", "rationale_un", "rationale_wl", "rationale_cts", "rationale_bc"]
+
+f1s = []
+for dataset in datasets:
+    data_file = args.data_dir + "/{}.json".format(dataset)
+    _, _, f1 = get_scores(data_file, opt, vocab, model)
+    f1s.append(f1)
+
+print("model id\ttrain\tdev\tun\twl\tcts\tbc\tcomments")
+print(opt["id"], end="\t")
+for f1 in f1s:
+    print(f"{f1*100:<.3f}", end="\t")
+
+print("\n")
 print("Evaluation ended.")

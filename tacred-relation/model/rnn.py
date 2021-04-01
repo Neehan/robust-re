@@ -40,7 +40,7 @@ class RelationModel(object):
         # step forward
         self.model.train()
         self.optimizer.zero_grad()
-        logits, _ = self.model(inputs)
+        logits, attn_weights, _ = self.model(inputs)
 
         loss = self.criterion(logits, labels)
         if isinstance(biased_model_probs, torch.Tensor):
@@ -71,15 +71,15 @@ class RelationModel(object):
 
         # forward
         self.model.eval()
-        logits, _ = self.model(inputs)
+        logits, attn_weights, _ = self.model(inputs)
         loss = self.criterion(logits, labels)
         probs = F.softmax(logits, dim=1).data.cpu().numpy().tolist()
         predictions = np.argmax(logits.data.cpu().numpy(), axis=1).tolist()
         if unsort:
-            _, predictions, probs = [
-                list(t) for t in zip(*sorted(zip(orig_idx, predictions, probs)))
+            _, predictions, probs, attn_weights = [
+                list(t) for t in zip(*sorted(zip(orig_idx, predictions, probs, attn_weights)))
             ]
-        return predictions, probs, loss.data.item()
+        return predictions, probs, attn_weights, loss.data.item()
 
     def update_lr(self, new_lr):
         torch_utils.change_lr(self.optimizer, new_lr)
@@ -223,4 +223,4 @@ class PositionAwareRNN(nn.Module):
             final_hidden = hidden
 
         logits = self.linear(final_hidden)
-        return logits, final_hidden
+        return logits, attn_weights, final_hidden
