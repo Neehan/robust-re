@@ -67,7 +67,7 @@ class RelationModel(object):
             inputs = [b for b in batch[:6]]
             labels = batch[6]
 
-        orig_idx = batch[7]
+        orig_idx = batch[8]
 
         # forward
         self.model.eval()

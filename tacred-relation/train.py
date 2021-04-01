@@ -4,22 +4,21 @@ Train a model on TACRED.
 
 
 import os
-from datetime import datetime
 import time
 import numpy as np
 import random
 import argparse
 from shutil import copyfile
 import torch
-import torch.nn as nn
-import torch.optim as optim
 from tqdm import tqdm
 
 from data.loader import DataLoader
 from model.rnn import RelationModel
+
 # from model.bert_rnn import BertRelationModel
 from utils import scorer, constant, helper
 from utils.vocab import Vocab
+
 # from utils.bert_vocab import BERTVocab
 
 parser = argparse.ArgumentParser()
@@ -135,7 +134,11 @@ train_batch = DataLoader(
     evaluation=False,
 )
 dev_batch = DataLoader(
-    opt["data_dir"] + "/" + opt["test_name"], opt["batch_size"], opt, vocab, evaluation=True
+    opt["data_dir"] + "/" + opt["test_name"],
+    opt["batch_size"],
+    opt,
+    vocab,
+    evaluation=True,
 )
 
 # if opt["bert"]:
@@ -184,17 +187,17 @@ for epoch in range(1, opt["num_epoch"] + 1):
         # if global_step % opt["log_step"] == 0:
         #     duration = time.time() - start_time
         #     # print(
-            #     format_str.format(
-            #         datetime.now(),
-            #         global_step,
-            #         max_steps,
-            #         epoch,
-            #         opt["num_epoch"],
-            #         loss,
-            #         duration,
-            #         current_lr,
-            #     )
-            # )
+        #     format_str.format(
+        #         datetime.now(),
+        #         global_step,
+        #         max_steps,
+        #         epoch,
+        #         opt["num_epoch"],
+        #         loss,
+        #         duration,
+        #         current_lr,
+        #     )
+        # )
 
     # eval on dev
     print("Evaluating on dev set...")
@@ -230,8 +233,8 @@ for epoch in range(1, opt["num_epoch"] + 1):
     if epoch == 1 or dev_f1 > max(dev_f1_history):
         copyfile(model_file, model_save_dir + "/best_model.pt")
         print("new best model saved.")
-    if epoch % opt["save_epoch"] != 0:
-        os.remove(model_file)
+    # if epoch % opt["save_epoch"] != 0:
+    os.remove(model_file)
 
     # lr schedule
     if (

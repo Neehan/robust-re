@@ -84,7 +84,7 @@ class PositionAwareAttention(nn.Module):
             self.rlinear.weight.data.normal_(std=0.01)
         self.tlinear.weight.data.zero_()  # use zero to give uniform attention at the beginning
 
-    def forward(self, x, x_mask, q, f, rat_features=None):
+    def forward(self, x, x_mask, q, f, rationale=None):
         """
         x : batch_size * seq_len * input_size
         q : batch_size * query_size
@@ -127,6 +127,11 @@ class PositionAwareAttention(nn.Module):
 
         # mask padding
         scores.data.masked_fill_(x_mask.data, -float("inf"))
+        
+        if rationale is not None:
+            # clear non-rationale tokens for attention
+            scores.data.masked_fill_((1-rationale).bool().data, -float("inf"))
+
         weights = F.softmax(scores, dim=1)
         # weighted average input vectors
         outputs = weights.unsqueeze(1).bmm(x).squeeze(1)

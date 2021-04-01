@@ -15,7 +15,7 @@ import torch
 # import torch.optim as optim
 from tqdm import tqdm
 
-from data.loader_rat import DataLoader
+from data.loader import DataLoader
 from model.rnn_rat import RelationModel
 
 # from model.bert_rnn import BertRelationModel

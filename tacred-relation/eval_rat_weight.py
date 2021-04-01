@@ -6,7 +6,7 @@ import argparse
 import random
 
 import torch
-from data.loader_rat import DataLoader
+from data.loader import DataLoader
 from model.rnn_rat_weight import RelationModel
 from utils import constant, helper, scorer, torch_utils
 from utils.vocab import Vocab

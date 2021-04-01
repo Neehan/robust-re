@@ -4,16 +4,16 @@ Run evaluation with saved models.
 
 import argparse
 import random
+import numpy as np
 
 import torch
-from data.loader_rat import DataLoader
+from data.loader import DataLoader
 from model.rnn_rat import RelationModel
 from utils import constant, helper, scorer, torch_utils
 from utils.vocab import Vocab
 
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    "model_dir", type=str, help="Directory of the model.")
+parser.add_argument("model_dir", type=str, help="Directory of the model.")
 parser.add_argument(
     "--model", type=str, default="best_model.pt", help="Name of the model file."
 )
@@ -77,7 +77,48 @@ def get_scores(data_file, opt, vocab, model):
     return p, r, f1
 
 
-datasets = ["rationale_train", "rationale_dev", "rationale_un", "rationale_wl", "rationale_cts", "rationale_bc"]
+# data_file = args.data_dir + "/{}.json".format("rationale_synthetic_train")
+# batch = DataLoader(data_file, opt["batch_size"], opt, vocab, evaluation=True)
+
+# for t in range(30):
+#     b = batch[t]
+#     wordids = b[0]
+#     rationale = b[7]
+#     relation = [id2label[int(x)] for x in b[6]]
+#     # input is sorted by length, so don't unsort it since we need attn
+#     preds, probs, attn_weights, _ = model.predict(b, unsort=False)
+
+#     for i in range(len(b)):
+#         if relation[i] == 'no_relation':
+#             continue
+#         print("Relation: ", relation[i])
+#         tokens = [vocab.id2word[y] for y in wordids[i]]
+#         attn = [np.round(float(x), 3) for x in attn_weights[i]]
+#         attn_idx = set(np.argpartition(attn, -10)[-10:])
+#         mal = []
+#         for j, token in enumerate(tokens):
+#             if j in attn_idx:
+#                 if rationale[i][j]:
+#                     token = "["+token+"]"
+#                 print(attn[j], tokens[j], sep='\t')
+#                 mal.append(token)
+#                 # printable.append("[" + token + "]" if rationale[i][j] else token)
+#                 # mal.append(str(attn[j]))
+#             else:
+#                 mal.append("_")
+
+#         print(" ".join(mal), "\n")
+
+
+datasets = [
+    "rationale_train",
+    "rationale_dev",
+    "rationale_un",
+    "rationale_wl",
+    "rationale_cts",
+    "rationale_bc",
+]
+
 
 f1s = []
 for dataset in datasets:

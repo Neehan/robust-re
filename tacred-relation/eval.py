@@ -5,6 +5,7 @@ Run evaluation with saved models.
 import random
 import argparse
 import torch
+import numpy as np
 
 from data.loader import DataLoader
 from model.rnn import RelationModel
@@ -66,7 +67,7 @@ def get_scores(data_file, opt, vocab, model):
         predictions += preds
         all_probs += probs
     predictions = [id2label[p] for p in predictions]
-
+    
     # print("predictions")
     # for a, b in zip(batch.gold(), predictions):
     # 	print(f"{a:<28} {b:<28}")
@@ -74,6 +75,35 @@ def get_scores(data_file, opt, vocab, model):
     p, r, f1 = scorer.score(batch.gold(), predictions, verbose=False)
     return p, r, f1
 
+
+# data_file = args.data_dir + "/{}.json".format("rationale_synthetic_train")
+# batch = DataLoader(data_file, opt["batch_size"], opt, vocab, evaluation=True)
+
+# for t in range(30):
+#     b = batch[t]
+#     wordids = b[0]
+#     masks = b[1]
+#     relation = [id2label[int(x)] for x in b[6]]
+#     # input is sorted by length, so don't unsort it since we need attn
+#     preds, probs, attn_weights, _ = model.predict(b, unsort=False)
+
+#     for i in range(len(b)):
+#         if relation[i] == 'no_relation':
+#             continue
+#         print("Relation: ", relation[i])
+#         tokens = [vocab.id2word[y] for y in wordids[i]]
+#         attn = [np.round(float(x), 3) for x in attn_weights[i]]
+#         attn_idx = set(np.argpartition(attn, -10)[-10:])
+#         # print(np.array(attn)[attn_idx])
+#         mal = []
+#         for j, token in enumerate(tokens):
+#             if j in attn_idx:
+#                 mal.append(token)
+#                 print(attn[j], tokens[j], sep='\t')
+#             else:
+#                 mal.append("_")
+    
+#         print(" ".join(mal), "\n")
 
 datasets = [
     "rationale_train",

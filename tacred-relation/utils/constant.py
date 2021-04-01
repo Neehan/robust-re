@@ -1,12 +1,10 @@
 """
 Define common constants.
 """
-from transformers import BertTokenizer
 
-
-TRAIN_JSON = "train.json"
-DEV_JSON = "dev.json"
-TEST_JSON = "test.json"
+# TRAIN_JSON = "train.json"
+# DEV_JSON = "dev.json"
+# TEST_JSON = "test.json"
 
 GLOVE_DIR = "dataset/glove"
 # BERT_MODEL = "bert-base-cased"

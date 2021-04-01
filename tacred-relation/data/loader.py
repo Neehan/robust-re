@@ -7,7 +7,7 @@ import random
 import torch
 import numpy as np
 
-from utils import constant, helper, vocab
+from utils import constant
 
 
 class DataLoader(object):
@@ -30,11 +30,11 @@ class DataLoader(object):
             random.shuffle(indices)
             data = [data[i] for i in indices]
         id2label = dict([(v, k) for k, v in constant.LABEL_TO_ID.items()])
-        self.labels = [id2label[d[-1]] for d in data]
+        self.labels = [id2label[d[-2]] for d in data]
         self.num_examples = len(data)
 
         # chunk into batches
-        data = [data[i : i + batch_size] for i in range(0, len(data), batch_size)]
+        data = [data[i: i + batch_size] for i in range(0, len(data), batch_size)]
         self.data = data
         print("{} batches created for {}".format(len(data), filename))
 
@@ -48,16 +48,23 @@ class DataLoader(object):
             # anonymize tokens
             ss, se = d["subj_start"], d["subj_end"]
             os, oe = d["obj_start"], d["obj_end"]
-            # tokens[ss : se + 1] = ["SUBJ-" + d["subj_type"]] * (se - ss + 1)
-            # tokens[os : oe + 1] = ["OBJ-" + d["obj_type"]] * (oe - os + 1)
+            # tokens[ss: se + 1] = ["SUBJ-" + d["subj_type"]] * (se - ss + 1)
+            # tokens[os: oe + 1] = ["OBJ-" + d["obj_type"]] * (oe - os + 1)
             tokens = map_to_ids(tokens, vocab.word2id)
             pos = map_to_ids(d["stanford_pos"], constant.POS_TO_ID)
             ner = map_to_ids(d["stanford_ner"], constant.NER_TO_ID)
+            if d["relation"] != "no_relation":
+                rationale = d["rationale"]
+            else: # for negative relations, look at the entire sentence
+                rationale = [True]*len(tokens)
+            # rationale = d["rationale"]
             l = len(tokens)
             subj_positions = get_positions(d["subj_start"], d["subj_end"], l)
             obj_positions = get_positions(d["obj_start"], d["obj_end"], l)
             relation = constant.LABEL_TO_ID[d["relation"]]
-            processed += [(tokens, pos, ner, subj_positions, obj_positions, relation)]
+            processed += [
+                (tokens, pos, ner, subj_positions, obj_positions, relation, rationale)
+            ]
         return processed
 
     def gold(self):
@@ -77,7 +84,7 @@ class DataLoader(object):
         batch = self.data[key]
         batch_size = len(batch)
         batch = list(zip(*batch))
-        assert len(batch) == 6
+        assert len(batch) == 7
 
         # sort all fields by lens for easy RNN operations
         lens = [len(x) for x in batch[0]]
@@ -91,15 +98,26 @@ class DataLoader(object):
 
         # convert to tensors
         words = get_long_tensor(words, batch_size)
-        masks = torch.eq(words, 0)
+        masks = torch.eq(words, constant.PAD_ID)
         pos = get_long_tensor(batch[1], batch_size)
         ner = get_long_tensor(batch[2], batch_size)
         subj_positions = get_long_tensor(batch[3], batch_size)
         obj_positions = get_long_tensor(batch[4], batch_size)
 
         rels = torch.LongTensor(batch[5])
+        rationale = get_long_tensor(batch[6], batch_size)
 
-        return (words, masks, pos, ner, subj_positions, obj_positions, rels, orig_idx)
+        return (
+            words,
+            masks,
+            pos,
+            ner,
+            subj_positions,
+            obj_positions,
+            rels,
+            rationale,
+            orig_idx,
+        )
 
     def __iter__(self):
         for i in range(self.__len__()):

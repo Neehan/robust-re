@@ -35,9 +35,11 @@ class RelationModel(object):
     def cos_sim(self, inputs, labels, rationale):
         logits, attn_weights, attn_hidden, pre_attn_hidden = self.model(inputs)
         nll_loss = self.criterion(logits, labels)
+        rationale = F.softmax(rationale.float(), dim=1)
         non_rationale = F.softmax(1-rationale.float(), dim=1)
+
         nonrat_hidden = non_rationale.unsqueeze(1).bmm(pre_attn_hidden).squeeze(1)
-        rat_hidden = F.softmax(rationale.float(), dim=1).unsqueeze(1).bmm(pre_attn_hidden).squeeze(1)
+        rat_hidden = rationale.unsqueeze(1).bmm(pre_attn_hidden).squeeze(1)
 
         # discard attention loss from negative data points
         # since rationale from neg. data points is not
@@ -47,12 +49,12 @@ class RelationModel(object):
             rat_hidden, attn_hidden
         )
         # maximize rat cossim
-        rat_loss = -torch.sum(rat_loss.abs())
+        rat_loss = -torch.norm(rat_loss)
 
         nonrat_loss = (labels != no_relation_label) * self.attn_loss(
             nonrat_hidden, attn_hidden
         )
-        nonrat_loss = torch.sum(nonrat_loss.abs())
+        nonrat_loss = torch.norm(nonrat_loss)
 
         # attn_loss = torch.mean(rat_loss.abs())
         loss = nll_loss + self.rat_scaler * rat_loss + self.nonrat_scaler * nonrat_loss
@@ -279,10 +281,10 @@ class PositionAwareRNN(nn.Module):
             # e.g., -2 -1 0 1 will be mapped to 98 99 100 101
             subj_pe_inputs = self.pe_emb(subj_pos + constant.MAX_LEN)
             obj_pe_inputs = self.pe_emb(obj_pos + constant.MAX_LEN)
-            rat_features = self.rat_emb(rationale + constant.MAX_LEN)
+            # rat_features = self.rat_emb(rationale + constant.MAX_LEN)
             pe_features = torch.cat((subj_pe_inputs, obj_pe_inputs), dim=2)
             final_hidden, attn_weights = self.attn_layer(
-                outputs, masks, hidden, pe_features, rat_features
+                outputs, masks, hidden, pe_features, rationale
             )
         else:
             final_hidden = hidden
